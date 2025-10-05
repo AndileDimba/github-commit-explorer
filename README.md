@@ -2,7 +2,7 @@
 
 A Vue 3 application for exploring GitHub repositories and commits with favorites management.
 
-Live site: [https://github-commit-explorer-b16blv9un-andile-dimbas-projects.vercel.app](https://github-commit-explorer-b16blv9un-andile-dimbas-projects.vercel.app)
+Live site: https://github-commit-explorer.vercel.app/
 
 ## Features
 
