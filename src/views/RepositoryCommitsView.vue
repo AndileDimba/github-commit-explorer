@@ -1,357 +1,548 @@
 <template>
-  <div class="repo-commits-container">
-    <header class="page-header">
-      <div class="breadcrumb">
-        <router-link :to="`/users/${username}`" class="breadcrumb-link">
-          @{{ username }}
-        </router-link>
-        <span class="breadcrumb-separator">/</span>
-        <span class="breadcrumb-current">{{ repo }}</span>
+  <div class="commits-view">
+    <div class="commits-header">
+      <div class="header-content">
+        <button @click="goBack" class="back-button">
+          <span class="back-icon">←</span>
+          Back to Repositories
+        </button>
+        
+        <div class="repo-info">
+          <h1 class="repo-title">
+            <span class="repo-icon">📦</span>
+            {{ repoName }}
+          </h1>
+          <p class="repo-meta">
+            <span class="meta-item">
+              <span class="meta-icon">👤</span>
+              {{ username }}
+            </span>
+            <span class="meta-divider">•</span>
+            <span class="meta-item">
+              <span class="meta-icon">📝</span>
+              {{ store.commits.length }} commits
+            </span>
+          </p>
+        </div>
+
+        <div class="header-actions">
+          <label class="sort-control">
+            <span class="sort-label">Sort by:</span>
+            <select v-model="sortOrder" class="sort-select">
+              <option value="newest">Newest First</option>
+              <option value="oldest">Oldest First</option>
+            </select>
+          </label>
+        </div>
       </div>
-      
-      <div class="header-actions">
-        <a 
-          :href="`https://github.com/${username}/${repo}`" 
-          target="_blank" 
-          rel="noopener noreferrer"
-          class="github-button"
+    </div>
+
+    <div class="commits-container">
+      <div v-if="store.loading" class="loading-state">
+        <div class="skeleton-list">
+          <div v-for="i in 5" :key="i" class="skeleton-commit-card">
+            <div class="skeleton-header">
+              <div class="skeleton-avatar"></div>
+              <div class="skeleton-info">
+                <div class="skeleton-line skeleton-title"></div>
+                <div class="skeleton-line skeleton-meta"></div>
+              </div>
+            </div>
+            <div class="skeleton-line skeleton-message"></div>
+          </div>
+        </div>
+      </div>
+
+      <div v-else-if="store.error" class="error-state">
+        <span class="error-icon">⚠️</span>
+        <h2 class="error-title">Failed to Load Commits</h2>
+        <p class="error-message">{{ store.error }}</p>
+        <button @click="loadCommits" class="retry-button">
+          <span class="retry-icon">↻</span>
+          Try Again
+        </button>
+      </div>
+
+      <div v-else-if="sortedCommits.length === 0" class="empty-state">
+        <span class="empty-icon">📭</span>
+        <h2 class="empty-title">No Commits Found</h2>
+        <p class="empty-message">This repository doesn't have any commits yet.</p>
+      </div>
+
+      <div v-else class="commits-list">
+        <div
+          v-for="commit in sortedCommits"
+          :key="commit.sha"
+          class="commit-card"
         >
-          <span>View on GitHub</span>
-          <span class="github-icon">↗</span>
-        </a>
-      </div>
-    </header>
+          <div class="commit-header">
+            <img
+              v-if="commit.author?.avatar_url"
+              :src="commit.author.avatar_url"
+              :alt="commit.commit.author.name"
+              class="author-avatar"
+            />
+            <div v-else class="author-avatar-placeholder">
+              {{ commit.commit.author.name.charAt(0).toUpperCase() }}
+            </div>
 
-    <ErrorBanner
-      v-if="store.error"
-      :message="store.error"
-      :dismissible="true"
-      @dismiss="store.clearError()"
-    />
-
-    <div class="commits-section">
-      <div class="section-header">
-        <h1>Commits</h1>
-        <select v-model="sortOrder" class="sort-select">
-          <option value="newest">Newest First</option>
-          <option value="oldest">Oldest First</option>
-        </select>
-      </div>
-
-      <SkeletonLoader 
-        v-if="store.loading" 
-        :count="10" 
-        variant="commit-card" 
-      />
-
-      <EmptyState
-        v-else-if="!displayedCommits.length && !store.loading"
-        icon="📝"
-        title="No commits found"
-        description="This repository doesn't have any commits yet."
-      />
-
-      <div v-else>
-        <div class="commits-list">
-          <div
-            v-for="commit in displayedCommits"
-            :key="commit.sha"
-            class="commit-card"
-          >
-            <div class="commit-main">
-              <div class="commit-info">
-                <h3 class="commit-message">{{ commit.commit.message }}</h3>
-                <div class="commit-meta">
-                  <span class="commit-author">{{ commit.commit.author.name }}</span>
-                  <span class="meta-separator">•</span>
-                  <span class="commit-date">{{ formatDate(commit.commit.author.date) }}</span>
-                  <span class="meta-separator">•</span>
-                  <a 
-                    :href="commit.html_url" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    class="commit-sha"
-                    @click.stop
-                  >
-                    {{ commit.sha.substring(0, 7) }}
-                  </a>
-                </div>
-              </div>
-
-              <div class="commit-actions">
-                <button
-                  @click="toggleFavorite(commit)"
-                  class="btn-icon"
-                  :class="{ favorited: store.isFavorite(commit.sha) }"
-                  :title="store.isFavorite(commit.sha) ? 'Remove from favorites' : 'Add to favorites'"
-                >
-                  {{ store.isFavorite(commit.sha) ? '★' : '☆' }}
-                </button>
-                <button
-                  @click="viewCommitDetail(commit.sha)"
-                  class="btn-detail"
-                >
-                  View Diff
-                </button>
+            <div class="commit-info">
+              <h3 class="commit-message">{{ commit.commit.message }}</h3>
+              <div class="commit-meta">
+                <span class="author-name">{{ commit.commit.author.name }}</span>
+                <span class="meta-divider">•</span>
+                <span class="commit-date">{{ formatDate(commit.commit.author.date) }}</span>
               </div>
             </div>
-          </div>
-        </div>
 
-        <Pagination
-          :current-page="store.currentCommitPage"
-          :has-more="store.hasMoreCommits"
-          :disabled="store.loading"
-          @first="store.firstCommitPage()"
-          @previous="store.previousCommitPage()"
-          @next="store.nextCommitPage()"
-        />
-      </div>
-    </div>
-
-    <div v-if="showDetailModal" class="modal-overlay" @click="closeModal">
-      <div class="modal-content" @click.stop>
-        <div class="modal-header">
-          <h2>Commit Details</h2>
-          <button @click="closeModal" class="btn-close">×</button>
-        </div>
-
-        <LoadingSpinner v-if="store.loading" message="Loading details..." />
-
-        <div v-else-if="store.currentCommitDetail" class="commit-detail">
-          <div class="detail-section">
-            <h3>{{ store.currentCommitDetail.commit.message }}</h3>
-            <div class="detail-meta">
-              <span>{{ store.currentCommitDetail.commit.author.name }}</span>
-              <span class="meta-separator">•</span>
-              <span>{{ formatDate(store.currentCommitDetail.commit.author.date) }}</span>
-              <span class="meta-separator">•</span>
-              <a 
-                :href="store.currentCommitDetail.html_url" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                class="detail-link"
-              >
-                {{ store.currentCommitDetail.sha.substring(0, 7) }}
-              </a>
-            </div>
-          </div>
-
-          <div v-if="store.currentCommitDetail.stats" class="stats-section">
-            <div class="stat-card">
-              <div class="stat-value">{{ store.currentCommitDetail.stats.total }}</div>
-              <div class="stat-label">Files Changed</div>
-            </div>
-            <div class="stat-card additions">
-              <div class="stat-value">+{{ store.currentCommitDetail.stats.additions }}</div>
-              <div class="stat-label">Additions</div>
-            </div>
-            <div class="stat-card deletions">
-              <div class="stat-value">-{{ store.currentCommitDetail.stats.deletions }}</div>
-              <div class="stat-label">Deletions</div>
-            </div>
-          </div>
-
-          <div v-if="store.currentCommitDetail.files && store.currentCommitDetail.files.length > 0" class="files-section">
-            <h3>Changed Files</h3>
-            <div
-              v-for="file in store.currentCommitDetail.files"
-              :key="file.filename"
-              class="file-card"
+            <button
+              @click="toggleFavorite(commit)"
+              class="favorite-button"
+              :class="{ 'is-favorite': store.isFavorite(commit.sha) }"
+              :aria-label="store.isFavorite(commit.sha) ? 'Remove from favorites' : 'Add to favorites'"
             >
-              <div class="file-header">
-                <span class="filename">{{ file.filename }}</span>
-                <div class="file-meta">
-                  <span class="file-status" :class="file.status">{{ file.status }}</span>
-                  <span class="file-changes">
-                    <span class="additions">+{{ file.additions }}</span>
-                    <span class="deletions">-{{ file.deletions }}</span>
-                  </span>
-                </div>
-              </div>
-              <pre v-if="file.patch" class="file-patch">{{ file.patch }}</pre>
-              <p v-else class="no-patch">No diff available</p>
+              <span class="favorite-icon">{{ store.isFavorite(commit.sha) ? '★' : '☆' }}</span>
+            </button>
+          </div>
+
+          <div class="commit-actions">
+            <button @click="viewCommitDetails(commit)" class="action-button primary">
+              <span class="button-icon">📄</span>
+              View Diff
+            </button>
+            <a
+              :href="commit.html_url"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="action-button secondary"
+            >
+              <span class="button-icon">↗</span>
+              GitHub
+            </a>
+            <div class="commit-sha">
+              <span class="sha-label">SHA:</span>
+              <code class="sha-value">{{ commit.sha.substring(0, 7) }}</code>
             </div>
           </div>
         </div>
       </div>
+
+      <div v-if="sortedCommits.length > 0" class="pagination">
+        <button
+          @click="goToFirstPage"
+          :disabled="store.currentCommitPage === 1 || store.loading"
+          class="pagination-button"
+          aria-label="First page"
+        >
+          <span class="pagination-icon">⟪</span>
+        </button>
+        <button
+          @click="goToPreviousPage"
+          :disabled="store.currentCommitPage === 1 || store.loading"
+          class="pagination-button"
+          aria-label="Previous page"
+        >
+          <span class="pagination-icon">←</span>
+          Previous
+        </button>
+        <span class="pagination-info">Page {{ store.currentCommitPage }}</span>
+        <button
+          @click="goToNextPage"
+          :disabled="!store.hasMoreCommits || store.loading"
+          class="pagination-button"
+          aria-label="Next page"
+        >
+          Next
+          <span class="pagination-icon">→</span>
+        </button>
+      </div>
     </div>
+
+    <CommitDetailsModal
+      v-if="selectedCommit"
+      :username="username"
+      :repo-name="repoName"
+      :commit-sha="selectedCommit.sha"
+      @close="selectedCommit = null"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { useRepositoryStore } from '../stores/repository';
-import type { Commit } from '../types/git';
 import { formatDate } from '../utils/date';
-import LoadingSpinner from '../components/LoadingSpinner.vue';
-import EmptyState from '../components/EmptyState.vue';
-import ErrorBanner from '../components/ErrorBanner.vue';
-import Pagination from '../components/Pagination.vue';
-import SkeletonLoader from '../components/SkeletonLoader.vue';
+import CommitDetailsModal from '../components/CommitDetailsModal.vue';
+import type { Commit } from '../types/git';
 
-const props = defineProps<{
-  username: string;
-  repo: string;
-}>();
-
+const route = useRoute();
+const router = useRouter();
 const store = useRepositoryStore();
+
+const username = route.params.username as string;
+const repoName = route.params.repo as string;
 const sortOrder = ref<'newest' | 'oldest'>('newest');
-const showDetailModal = ref(false);
+const selectedCommit = ref<Commit | null>(null);
 
-const displayedCommits = computed(() => {
-  return store.sortedCommits(sortOrder.value);
-});
+const sortedCommits = computed(() => store.sortedCommits(sortOrder.value));
 
-onMounted(async () => {
-  await store.loadCommits(props.username, props.repo);
-  
-  const repo = store.repositories.find(r => r.name === props.repo);
-  if (repo) {
-    store.selectedRepo = repo;
-  }
-});
+const loadCommits = async () => {
+  await store.loadCommits(username, repoName, store.currentCommitPage);
+};
+
+const goBack = () => {
+  router.push(`/users/${username}`);
+};
 
 const toggleFavorite = (commit: Commit) => {
-  store.toggleFavorite(commit, props.repo, props.username);
+  store.toggleFavorite(commit, repoName, username);
 };
 
-const viewCommitDetail = async (sha: string) => {
-  showDetailModal.value = true;
-  await store.loadCommitDetail(props.username, props.repo, sha);
+const viewCommitDetails = (commit: Commit) => {
+  selectedCommit.value = commit;
 };
 
-const closeModal = () => {
-  showDetailModal.value = false;
-  store.currentCommitDetail = null;
+const goToNextPage = async () => {
+  await store.nextCommitPage();
 };
+
+const goToPreviousPage = async () => {
+  await store.previousCommitPage();
+};
+
+const goToFirstPage = async () => {
+  await store.firstCommitPage();
+};
+
+watch(() => route.params, (newParams, oldParams) => {
+  if (newParams.username !== oldParams.username || newParams.repo !== oldParams.repo) {
+    store.resetCommits();
+    loadCommits();
+  }
+}, { deep: true });
+
+onMounted(() => {
+  store.resetCommits();
+  loadCommits();
+});
 </script>
 
 <style scoped>
-.repo-commits-container {
-  min-height: calc(100vh - 80px);
-  padding: 2rem;
+.commits-view {
+  min-height: 100vh;
+  background: var(--color-gray-50);
+}
+
+.commits-header {
+  background: var(--color-white);
+  border-bottom: 2px solid var(--color-gray-200);
+  padding: 2rem 1.5rem;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  backdrop-filter: blur(8px);
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.header-content {
   max-width: 1200px;
   margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
 }
 
-.page-header {
-  margin-bottom: 2rem;
-  padding-bottom: 1rem;
-  border-bottom: 3px solid #000;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-
-.breadcrumb {
-  display: flex;
+.back-button {
+  display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 1.5rem;
+  padding: 0.5rem 1rem;
+  background: transparent;
+  color: var(--color-gray-600);
+  border: 1px solid var(--color-gray-300);
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  align-self: flex-start;
 }
 
-.breadcrumb-link {
-  color: #000;
-  text-decoration: none;
-  font-weight: 600;
-  transition: opacity 0.2s;
+.back-button:hover {
+  background: var(--color-gray-100);
+  color: var(--color-black);
+  border-color: var(--color-gray-400);
 }
 
-.breadcrumb-link:hover {
-  opacity: 0.7;
-  text-decoration: underline;
+.back-icon {
+  font-size: 1.25rem;
+  line-height: 1;
 }
 
-.breadcrumb-separator {
-  color: #666;
+.repo-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
-.breadcrumb-current {
+.repo-title {
+  font-size: 1.875rem;
   font-weight: 700;
-  color: #000;
+  color: var(--color-black);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.repo-icon {
+  font-size: 2rem;
+}
+
+.repo-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--color-gray-600);
+  font-size: 0.9375rem;
+  margin: 0;
+}
+
+.meta-item {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.meta-icon {
+  font-size: 1rem;
+}
+
+.meta-divider {
+  color: var(--color-gray-400);
 }
 
 .header-actions {
   display: flex;
-  gap: 1rem;
+  justify-content: flex-end;
 }
 
-.github-button {
+.sort-control {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
-  background: #000;
-  color: #fff;
-  border: 2px solid #000;
-  text-decoration: none;
-  font-weight: 600;
-  transition: all 0.2s;
-  border-radius: 0.3rem;
+  gap: 0.75rem;
+  font-size: 0.875rem;
 }
 
-.github-button:hover {
-  background: #fff;
-  color: #000;
-}
-
-.commits-section {
-  margin-bottom: 2rem;
-}
-
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1.5rem;
-}
-
-.section-header h1 {
-  font-size: 1.75rem;
-  color: #000;
+.sort-label {
+  color: var(--color-gray-600);
+  font-weight: 500;
 }
 
 .sort-select {
-  padding: 0.5rem 1rem;
-  border: 2px solid #000;
-  background: #fff;
+  padding: 0.5rem 0.875rem;
+  background: var(--color-white);
+  color: var(--color-black);
+  border: 1px solid var(--color-gray-300);
+  border-radius: var(--radius-md);
   font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
+  transition: all var(--transition-base);
+}
+
+.sort-select:hover {
+  border-color: var(--color-gray-400);
+  background: var(--color-gray-50);
 }
 
 .sort-select:focus {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1);
+  border-color: var(--color-blue);
+}
+
+.commits-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+}
+
+.loading-state,
+.error-state,
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 1rem;
+  gap: 1rem;
+}
+
+.skeleton-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.skeleton-commit-card {
+  background: var(--color-white);
+  border: 2px solid var(--color-gray-200);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.skeleton-header {
+  display: flex;
+  gap: 1rem;
+}
+
+.skeleton-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(90deg, var(--color-gray-100) 25%, var(--color-gray-200) 50%, var(--color-gray-100) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.skeleton-line {
+  height: 1rem;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(90deg, var(--color-gray-100) 25%, var(--color-gray-200) 50%, var(--color-gray-100) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-title {
+  width: 60%;
+}
+
+.skeleton-meta {
+  width: 40%;
+}
+
+.skeleton-message {
+  width: 80%;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.error-icon,
+.empty-icon {
+  font-size: 4rem;
+}
+
+.error-title,
+.empty-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-black);
+  margin: 0;
+}
+
+.error-message,
+.empty-message {
+  color: var(--color-gray-600);
+  text-align: center;
+  max-width: 400px;
+  margin: 0;
+}
+
+.retry-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: var(--color-blue);
+  color: #FFFFFF;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  margin-top: 0.5rem;
+}
+
+.retry-button:hover {
+  background: var(--color-blue-dark);
+  transform: translateY(-1px);
+}
+
+.retry-icon {
+  font-size: 1.25rem;
 }
 
 .commits-list {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  margin-bottom: 2rem;
+  gap: 1.5rem;
 }
 
 .commit-card {
-  border: 2px solid #000;
+  background: var(--color-white);
+  border: 2px solid var(--color-gray-200);
+  border-radius: var(--radius-lg);
   padding: 1.5rem;
-  background: #fff;
-  transition: all 0.2s;
+  transition: all var(--transition-base);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .commit-card:hover {
-  background: #f5f5f5;
+  border-color: var(--color-blue);
+  box-shadow: 0 8px 24px rgba(0, 112, 243, 0.15);
   transform: translateY(-2px);
-  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.2);
 }
 
-.commit-main {
+.commit-header {
   display: flex;
-  justify-content: space-between;
-  gap: 1.5rem;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.author-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 2px solid var(--color-gray-200);
+  flex-shrink: 0;
+}
+
+.author-avatar-placeholder {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--color-blue);
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.25rem;
+  flex-shrink: 0;
 }
 
 .commit-info {
@@ -360,11 +551,11 @@ const closeModal = () => {
 }
 
 .commit-message {
-  font-size: 1.125rem;
+  font-size: 1rem;
   font-weight: 600;
-  margin-bottom: 0.5rem;
-  color: #000;
-  word-break: break-word;
+  color: var(--color-black);
+  margin: 0 0 0.5rem 0;
+  line-height: 1.5;
 }
 
 .commit-meta {
@@ -372,407 +563,208 @@ const closeModal = () => {
   align-items: center;
   gap: 0.5rem;
   font-size: 0.875rem;
-  color: #666;
-  flex-wrap: wrap;
+  color: var(--color-gray-600);
 }
 
-.commit-author {
+.author-name {
   font-weight: 500;
 }
 
-.meta-separator {
-  color: #ccc;
+.commit-date {
+  font-weight: 400;
 }
 
-.commit-sha {
-  font-family: monospace;
-  color: #000;
-  text-decoration: none;
-  padding: 0.125rem 0.375rem;
-  background: #f5f5f5;
-  border: 1px solid #ddd;
-  font-weight: 600;
+.favorite-button {
+  background: transparent;
+  border: none;
+  color: var(--color-gray-400);
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0.25rem;
+  transition: all var(--transition-base);
+  flex-shrink: 0;
 }
 
-.commit-sha:hover {
-  background: #000;
-  color: #fff;
-  border-color: #000;
+.favorite-button:hover {
+  color: #F59E0B;
+  transform: scale(1.1);
+}
+
+.favorite-button.is-favorite {
+  color: #F59E0B;
+}
+
+.favorite-icon {
+  display: block;
+  line-height: 1;
 }
 
 .commit-actions {
   display: flex;
-  gap: 0.5rem;
-  align-items: flex-start;
-  flex-shrink: 0;
-}
-
-.btn-icon {
-  padding: 0.5rem;
-  background: #fff;
-  border: 2px solid #ddd;
-  font-size: 1.25rem;
-  cursor: pointer;
-  transition: all 0.2s;
-  line-height: 1;
-  border-radius: 0.3rem;
-}
-
-.btn-icon:hover {
-  border-color: #000;
-}
-
-.btn-icon.favorited {
-  background: #000;
-  color: #fff;
-  border-color: #000;
-}
-
-.btn-detail {
-  padding: 0.5rem 1rem;
-  background: #fff;
-  border: 2px solid #000;
-  font-size: 0.875rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  white-space: nowrap;
-  border-radius: 0.3rem;
-}
-
-.btn-detail:hover {
-  background: #000;
-  color: #fff;
-}
-
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.9);
-  display: flex;
   align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 2rem;
-}
-
-.modal-content {
-  background: #1e1e1e;
-  border: 1px solid #3e3e3e;
-  max-width: 1000px;
-  width: 100%;
-  max-height: 90vh;
-  overflow-y: auto;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1rem 1.5rem;
-  background: #2d2d2d;
-  border-bottom: 1px solid #3e3e3e;
-  position: sticky;
-  top: 0;
-  z-index: 1;
-}
-
-.modal-header h2 {
-  font-size: 1.25rem;
-  color: #cccccc;
-  font-weight: 500;
-}
-
-.btn-close {
-  padding: 0.25rem 0.75rem;
-  background: transparent;
-  border: 1px solid #555;
-  color: #cccccc;
-  font-size: 1.5rem;
-  cursor: pointer;
-  line-height: 1;
-  transition: all 0.2s;
-  border-radius: 3px;
-}
-
-.btn-close:hover {
-  background: #3e3e3e;
-  border-color: #777;
-  color: #fff;
-}
-
-.commit-detail {
-  padding: 1.5rem;
-  background: #1e1e1e;
-  color: #cccccc;
-}
-
-.detail-section {
-  margin-bottom: 1.5rem;
-  padding-bottom: 1.5rem;
-  border-bottom: 1px solid #3e3e3e;
-}
-
-.detail-section h3 {
-  font-size: 1.125rem;
-  margin-bottom: 0.75rem;
-  color: #ffffff;
-  font-weight: 500;
-}
-
-.detail-meta {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.875rem;
-  color: #858585;
-  flex-wrap: wrap;
-}
-
-.detail-link {
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-  color: #4fc3f7;
-  text-decoration: none;
-  padding: 0.125rem 0.375rem;
-  background: #2d2d2d;
-  border: 1px solid #3e3e3e;
-  font-weight: 500;
-  border-radius: 3px;
-  transition: all 0.2s;
-}
-
-.detail-link:hover {
-  background: #3e3e3e;
-  border-color: #4fc3f7;
-}
-
-.stats-section {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-  padding-bottom: 1.5rem;
-  border-bottom: 1px solid #3e3e3e;
-}
-
-.stat-card {
-  background: #252526;
-  border: 1px solid #3e3e3e;
-  padding: 1rem;
-  text-align: center;
-  border-radius: 4px;
-}
-
-.stat-value {
-  font-size: 2rem;
-  font-weight: 700;
-  color: #ffffff;
-  margin-bottom: 0.25rem;
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-}
-
-.stat-card.additions .stat-value {
-  color: #4ec9b0;
-}
-
-.stat-card.deletions .stat-value {
-  color: #f48771;
-}
-
-.stat-label {
-  font-size: 0.875rem;
-  color: #858585;
-  font-weight: 400;
-}
-
-.files-section h3 {
-  font-size: 1.125rem;
-  margin-bottom: 1rem;
-  color: #ffffff;
-  font-weight: 500;
-}
-
-.file-card {
-  margin-bottom: 1.5rem;
-  border: 1px solid #3e3e3e;
-  background: #252526;
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.file-header {
-  padding: 0.75rem 1rem;
-  background: #2d2d2d;
-  border-bottom: 1px solid #3e3e3e;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.filename {
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-  font-weight: 500;
-  color: #4fc3f7;
-  word-break: break-all;
-  font-size: 0.875rem;
-}
-
-.file-meta {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.file-status {
-  padding: 0.25rem 0.5rem;
-  border: 1px solid #3e3e3e;
-  font-size: 0.7rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  background: #252526;
-  color: #858585;
-  border-radius: 3px;
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-}
-
-.file-status.modified {
-  background: #1e3a5f;
-  color: #4fc3f7;
-  border-color: #4fc3f7;
-}
-
-.file-status.added {
-  background: #1e3a1e;
-  color: #4ec9b0;
-  border-color: #4ec9b0;
-}
-
-.file-status.removed {
-  background: #3a1e1e;
-  color: #f48771;
-  border-color: #f48771;
-}
-
-.file-changes {
-  display: flex;
   gap: 0.75rem;
+  flex-wrap: wrap;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-gray-200);
+}
+
+.action-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-md);
   font-size: 0.875rem;
   font-weight: 600;
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  text-decoration: none;
+  border: none;
 }
 
-.additions {
-  color: #4ec9b0;
+.action-button.primary {
+  background: var(--color-blue);
+  color: #FFFFFF;
 }
 
-.deletions {
-  color: #f48771;
+.action-button.primary:hover {
+  background: var(--color-blue-dark);
+  transform: translateY(-1px);
 }
 
-.file-patch {
-  padding: 1rem;
-  overflow-x: auto;
-  font-size: 0.8rem;
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-  line-height: 1.6;
-  background: #1e1e1e;
-  margin: 0;
-  white-space: pre;
-  color: #d4d4d4;
-  tab-size: 4;
+.action-button.secondary {
+  background: transparent;
+  color: var(--color-gray-600);
+  border: 1px solid var(--color-gray-300);
 }
 
-.file-patch {
-  background: #1e1e1e;
+.action-button.secondary:hover {
+  background: var(--color-gray-100);
+  color: var(--color-black);
+  border-color: var(--color-gray-400);
 }
 
-.no-patch {
-  padding: 1.5rem;
-  color: #858585;
-  font-style: italic;
-  text-align: center;
-  background: #1e1e1e;
+.button-icon {
+  font-size: 1rem;
+}
+
+.commit-sha {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+}
+
+.sha-label {
+  color: var(--color-gray-600);
+  font-weight: 500;
+}
+
+.sha-value {
+  font-family: 'Monaco', 'Courier New', monospace;
+  color: var(--color-blue);
+  background: var(--color-gray-100);
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 2px solid var(--color-gray-200);
+}
+
+.pagination-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  background: var(--color-white);
+  color: var(--color-black);
+  border: 1px solid var(--color-gray-300);
+  border-radius: var(--radius-md);
   font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-base);
 }
 
-.modal-content::-webkit-scrollbar {
-  width: 12px;
+.pagination-button:hover:not(:disabled) {
+  background: var(--color-gray-100);
+  border-color: var(--color-gray-400);
 }
 
-.modal-content::-webkit-scrollbar-track {
-  background: #1e1e1e;
+.pagination-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
-.modal-content::-webkit-scrollbar-thumb {
-  background: #424242;
-  border-radius: 6px;
+.pagination-icon {
+  font-size: 1rem;
+  line-height: 1;
 }
 
-.modal-content::-webkit-scrollbar-thumb:hover {
-  background: #4e4e4e;
-}
-
-.file-patch::-webkit-scrollbar {
-  height: 8px;
-}
-
-.file-patch::-webkit-scrollbar-track {
-  background: #252526;
-}
-
-.file-patch::-webkit-scrollbar-thumb {
-  background: #424242;
-  border-radius: 4px;
-}
-
-.file-patch::-webkit-scrollbar-thumb:hover {
-  background: #4e4e4e;
-}
-
-.file-patch {
-  counter-reset: line-number;
-}
-
-.file-patch::before {
-  content: '';
-  display: block;
+.pagination-info {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-black);
+  padding: 0 0.5rem;
 }
 
 @media (max-width: 768px) {
-  .repo-commits-container {
+  .commits-header {
+    padding: 1.5rem 1rem;
+  }
+
+  .header-content {
+    gap: 1rem;
+  }
+
+  .repo-title {
+    font-size: 1.5rem;
+  }
+
+  .commits-container {
+    padding: 1.5rem 1rem;
+  }
+
+  .commit-card {
     padding: 1rem;
   }
 
-  .page-header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .breadcrumb {
-    font-size: 1.25rem;
-  }
-
-  .commit-main {
-    flex-direction: column;
+  .commit-header {
+    flex-wrap: wrap;
   }
 
   .commit-actions {
-    align-self: flex-start;
-  }
-
-  .stats-section {
-    grid-template-columns: 1fr;
-  }
-
-  .file-header {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: stretch;
+  }
+
+  .action-button {
+    justify-content: center;
+  }
+
+  .commit-sha {
+    margin-left: 0;
+    justify-content: center;
+  }
+
+  .pagination {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .pagination-button {
+    flex: 1;
+    min-width: 100px;
+    justify-content: center;
   }
 }
 </style>

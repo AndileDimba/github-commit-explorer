@@ -50,8 +50,8 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import { useRepositoryStore } from '../stores/repository';
 import { useRoute } from 'vue-router';
+import { useRepositoryStore } from '../stores/repository';
 
 const route = useRoute();
 const store = useRepositoryStore();
@@ -60,12 +60,14 @@ const mobileMenuOpen = ref(false);
 
 <style scoped>
 .app-nav {
-  background: #fff;
-  border-bottom: 2px solid #000;
+  background: var(--color-white);
+  border-bottom: 1px solid var(--color-gray-200);
   position: sticky;
   top: 0;
   z-index: 100;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: blur(8px);
+  background: rgba(255, 255, 255, 0.95);
 }
 
 .nav-container {
@@ -75,7 +77,7 @@ const mobileMenuOpen = ref(false);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  height: 70px;
+  height: 64px;
 }
 
 .nav-brand {
@@ -83,17 +85,17 @@ const mobileMenuOpen = ref(false);
   align-items: center;
   gap: 0.75rem;
   text-decoration: none;
-  color: #000;
+  color: var(--color-black);
   font-weight: 700;
-  font-size: 1.25rem;
-  transition: all 0.3s ease;
+  font-size: 1.125rem;
+  transition: all var(--transition-base);
   padding: 0.5rem 1rem;
-  border: 2px solid transparent;
+  border-radius: var(--radius-md);
 }
 
 .nav-brand:hover {
-  border-color: #000;
-  transform: translateY(-2px);
+  background: var(--color-gray-100);
+  transform: translateY(-1px);
 }
 
 .brand-icon {
@@ -110,17 +112,19 @@ const mobileMenuOpen = ref(false);
 .mobile-toggle {
   display: none;
   background: none;
-  border: 2px solid #000;
+  border: 1px solid var(--color-gray-300);
   padding: 0.5rem;
   cursor: pointer;
   width: 44px;
   height: 44px;
   position: relative;
-  transition: all 0.3s ease;
+  transition: all var(--transition-base);
+  border-radius: var(--radius-md);
 }
 
 .mobile-toggle:hover {
-  background: #000;
+  background: var(--color-gray-100);
+  border-color: var(--color-gray-400);
 }
 
 .hamburger {
@@ -128,12 +132,9 @@ const mobileMenuOpen = ref(false);
   position: relative;
   width: 24px;
   height: 2px;
-  background: #000;
-  transition: all 0.3s ease;
-}
-
-.mobile-toggle:hover .hamburger {
-  background: #fff;
+  background: var(--color-black);
+  transition: all var(--transition-base);
+  border-radius: 2px;
 }
 
 .hamburger::before,
@@ -142,13 +143,9 @@ const mobileMenuOpen = ref(false);
   position: absolute;
   width: 24px;
   height: 2px;
-  background: #000;
-  transition: all 0.3s ease;
-}
-
-.mobile-toggle:hover .hamburger::before,
-.mobile-toggle:hover .hamburger::after {
-  background: #fff;
+  background: var(--color-black);
+  transition: all var(--transition-base);
+  border-radius: 2px;
 }
 
 .hamburger::before {
@@ -183,76 +180,72 @@ const mobileMenuOpen = ref(false);
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.75rem 1.25rem;
+  padding: 0.625rem 1rem;
   text-decoration: none;
-  color: #000;
-  font-weight: 600;
-  font-size: 0.95rem;
-  border: 2px solid transparent;
-  transition: all 0.2s ease;
+  color: var(--color-gray-700);
+  font-weight: 500;
+  font-size: 0.9375rem;
+  border-radius: var(--radius-md);
+  transition: all var(--transition-base);
   position: relative;
-  background: #fff;
+  background: transparent;
 }
 
 .nav-link:hover {
-  background: #000;
-  color: #fff;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  background: var(--color-gray-100);
+  color: var(--color-black);
 }
 
 .nav-link.router-link-active {
-  background: #000;
-  color: #fff;
-  border-color: #000;
+  background: var(--color-blue);
+  color: var(--color-white);
+  font-weight: 600;
 }
 
-.nav-link.router-link-active::after {
-  content: '';
-  position: absolute;
-  bottom: -2px;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: #000;
+.nav-link.router-link-active:hover {
+  background: var(--color-blue-dark);
 }
 
 .link-icon {
-  font-size: 1.1rem;
+  font-size: 1.125rem;
   display: flex;
   align-items: center;
 }
 
 .link-text {
+  font-weight: 500;
+}
+
+.nav-link.router-link-active .link-text {
   font-weight: 600;
 }
 
 .badge {
-  background: #fff;
-  color: #000;
+  background: var(--color-white);
+  color: var(--color-blue);
   padding: 0.125rem 0.5rem;
-  border-radius: 12px;
+  border-radius: var(--radius-full);
   font-size: 0.75rem;
   font-weight: 700;
   min-width: 20px;
   text-align: center;
-  border: 1px solid #000;
+  line-height: 1.5;
 }
 
-.nav-link:hover .badge,
 .nav-link.router-link-active .badge {
-  background: #000;
-  color: #fff;
-  border-color: #fff;
+  background: var(--color-white);
+  color: var(--color-blue);
 }
 
 .nav-link-external {
-  border: 2px solid #000;
+  border: 1px solid var(--color-gray-300);
+  color: var(--color-black);
 }
 
 .nav-link-external:hover {
-  background: #000;
-  color: #fff;
+  background: var(--color-black);
+  color: var(--color-white);
+  border-color: var(--color-black);
 }
 
 @media (max-width: 768px) {
@@ -270,16 +263,16 @@ const mobileMenuOpen = ref(false);
     top: 60px;
     left: 0;
     right: 0;
-    background: #fff;
+    background: var(--color-white);
     flex-direction: column;
-    gap: 0;
+    gap: 0.5rem;
     padding: 1rem;
-    border-bottom: 2px solid #000;
+    border-bottom: 1px solid var(--color-gray-200);
     transform: translateY(-100%);
     opacity: 0;
     visibility: hidden;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transition: all var(--transition-base);
+    box-shadow: var(--shadow-lg);
   }
 
   .nav-links.mobile-open {
@@ -291,17 +284,7 @@ const mobileMenuOpen = ref(false);
   .nav-link {
     width: 100%;
     justify-content: flex-start;
-    padding: 1rem 1.25rem;
-    border: 2px solid #000;
-    margin-bottom: 0.5rem;
-  }
-
-  .nav-link:hover {
-    transform: translateX(4px);
-  }
-
-  .nav-link.router-link-active::after {
-    display: none;
+    padding: 0.875rem 1rem;
   }
 
   .brand-text {

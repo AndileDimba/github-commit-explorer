@@ -2,9 +2,11 @@
   <div class="user-repos-container">
     <header class="page-header">
       <div class="header-content">
-        <h1>@{{ username }}'s Repositories</h1>
+        <h1 class="page-title">
+          <span class="username-prefix">@</span>{{ username }}'s Repositories
+        </h1>
         <p class="repo-count" v-if="!store.loading && store.repositories.length > 0">
-          {{ store.repositories.length }} repositories
+          {{ store.repositories.length }} {{ store.repositories.length === 1 ? 'repository' : 'repositories' }}
         </p>
       </div>
     </header>
@@ -37,7 +39,7 @@
         @click="navigateToRepo(repo.name)"
       >
         <div class="repo-header">
-          <h2>{{ repo.name }}</h2>
+          <h2 class="repo-name">{{ repo.name }}</h2>
           <a 
             :href="repo.html_url" 
             target="_blank" 
@@ -59,7 +61,7 @@
 
         <div class="repo-meta">
           <span v-if="repo.language" class="meta-item">
-            <span class="meta-icon">●</span>
+            <span class="language-dot"></span>
             {{ repo.language }}
           </span>
           <span class="meta-item">
@@ -91,7 +93,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue';
+import { onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useRepositoryStore } from '../stores/repository';
 import { formatDate } from '../utils/date';
@@ -108,10 +110,18 @@ const router = useRouter();
 const store = useRepositoryStore();
 
 onMounted(() => {
+  loadRepositories();
+});
+
+watch(() => props.username, () => {
+  loadRepositories();
+});
+
+const loadRepositories = () => {
   if (!store.repositories.length || store.currentUsername !== props.username) {
     store.loadRepositories(props.username);
   }
-});
+};
 
 const navigateToRepo = (repoName: string) => {
   router.push(`/users/${props.username}/${repoName}`);
@@ -136,27 +146,44 @@ const goToFirstRepoPage = async () => {
 
 <style scoped>
 .user-repos-container {
-  min-height: calc(100vh - 80px);
+  min-height: calc(100vh - 64px);
   padding: 2rem;
   max-width: 1400px;
   margin: 0 auto;
+  background: var(--color-gray-50);
 }
 
 .page-header {
   margin-bottom: 2rem;
-  padding-bottom: 1rem;
-  border-bottom: 3px solid #000;
+  padding-bottom: 1.5rem;
+  border-bottom: 2px solid var(--color-gray-200);
 }
 
-.header-content h1 {
+.header-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.page-title {
   font-size: 2rem;
-  margin-bottom: 0.5rem;
-  color: #000;
+  font-weight: 700;
+  color: var(--color-black);
+  letter-spacing: -0.5px;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.username-prefix {
+  color: var(--color-blue);
+  font-weight: 700;
 }
 
 .repo-count {
   font-size: 1rem;
-  color: #666;
+  color: var(--color-gray-600);
+  font-weight: 500;
 }
 
 .repos-grid {
@@ -167,21 +194,22 @@ const goToFirstRepoPage = async () => {
 }
 
 .repo-card {
-  border: 2px solid #000;
+  background: var(--color-white);
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--radius-lg);
   padding: 1.5rem;
-  background: #fff;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all var(--transition-base);
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  box-shadow: var(--shadow-sm);
 }
 
 .repo-card:hover {
-  background: #000;
-  color: #fff;
-  transform: translateY(-2px);
-  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.2);
+  border-color: var(--color-blue);
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
 }
 
 .repo-header {
@@ -191,34 +219,31 @@ const goToFirstRepoPage = async () => {
   gap: 1rem;
 }
 
-.repo-card h2 {
+.repo-name {
   font-size: 1.25rem;
-  color: #000;
+  font-weight: 600;
+  color: var(--color-black);
   margin: 0;
   word-break: break-word;
-}
-
-.repo-card:hover h2 {
-  color: #fff;
+  line-height: 1.4;
 }
 
 .github-link {
-  color: #000;
+  color: var(--color-gray-600);
   text-decoration: none;
   font-size: 1.25rem;
   padding: 0.25rem;
-  border: 2px solid transparent;
-  transition: all 0.2s;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-base);
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .github-link:hover {
-  border-color: #000;
-}
-
-.repo-card:hover .github-link {
-  color: #fff;
-  border-color: #fff;
+  background: var(--color-gray-100);
+  color: var(--color-blue);
 }
 
 .github-icon {
@@ -226,23 +251,15 @@ const goToFirstRepoPage = async () => {
 }
 
 .repo-description {
-  color: #666;
-  font-size: 0.875rem;
-  line-height: 1.5;
+  color: var(--color-gray-600);
+  font-size: 0.9375rem;
+  line-height: 1.6;
   flex: 1;
-}
-
-.repo-card:hover .repo-description {
-  color: #ccc;
 }
 
 .no-description {
   font-style: italic;
-  color: #999;
-}
-
-.repo-card:hover .no-description {
-  color: #888;
+  color: var(--color-gray-400);
 }
 
 .repo-meta {
@@ -250,17 +267,23 @@ const goToFirstRepoPage = async () => {
   flex-wrap: wrap;
   gap: 1rem;
   font-size: 0.875rem;
-  color: #666;
-}
-
-.repo-card:hover .repo-meta {
-  color: #ccc;
+  color: var(--color-gray-600);
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--color-gray-200);
 }
 
 .meta-item {
   display: flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: 0.375rem;
+  font-weight: 500;
+}
+
+.language-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-blue);
 }
 
 .meta-icon {
@@ -268,22 +291,19 @@ const goToFirstRepoPage = async () => {
 }
 
 .repo-action {
-  padding-top: 0.5rem;
-  border-top: 1px solid #ddd;
-}
-
-.repo-card:hover .repo-action {
-  border-top-color: #444;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-gray-200);
 }
 
 .view-commits {
   font-weight: 600;
   font-size: 0.875rem;
-  color: #000;
+  color: var(--color-blue);
+  transition: color var(--transition-base);
 }
 
 .repo-card:hover .view-commits {
-  color: #fff;
+  color: var(--color-blue-dark);
 }
 
 @media (max-width: 768px) {
@@ -295,7 +315,7 @@ const goToFirstRepoPage = async () => {
     grid-template-columns: 1fr;
   }
 
-  .page-header h1 {
+  .page-title {
     font-size: 1.5rem;
   }
 }
