@@ -38,9 +38,10 @@
         </select>
       </div>
 
-      <LoadingSpinner 
-        v-if="store.loading && !store.commits.length" 
-        message="Loading commits..." 
+      <SkeletonLoader 
+        v-if="store.loading" 
+        :count="10" 
+        variant="commit-card" 
       />
 
       <EmptyState
@@ -187,6 +188,7 @@ import LoadingSpinner from '../components/LoadingSpinner.vue';
 import EmptyState from '../components/EmptyState.vue';
 import ErrorBanner from '../components/ErrorBanner.vue';
 import Pagination from '../components/Pagination.vue';
+import SkeletonLoader from '../components/SkeletonLoader.vue';
 
 const props = defineProps<{
   username: string;

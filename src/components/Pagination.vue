@@ -1,35 +1,36 @@
 <template>
   <div class="pagination">
-    <button
-      @click="$emit('first')"
+    <AnimatedButton
+      variant="secondary"
       :disabled="currentPage === 1 || disabled"
-      class="btn-pagination"
-      title="First page"
+      @click="$emit('first')"
       aria-label="Go to first page"
     >
       ««
-    </button>
-    <button
-      @click="$emit('previous')"
+    </AnimatedButton>
+    <AnimatedButton
+      variant="secondary"
       :disabled="currentPage === 1 || disabled"
-      class="btn-pagination"
+      @click="$emit('previous')"
       aria-label="Go to previous page"
     >
       ‹ Prev
-    </button>
+    </AnimatedButton>
     <span class="page-indicator">Page {{ currentPage }}</span>
-    <button
-      @click="$emit('next')"
+    <AnimatedButton
+      variant="secondary"
       :disabled="!hasMore || disabled"
-      class="btn-pagination"
+      @click="$emit('next')"
       aria-label="Go to next page"
     >
       Next ›
-    </button>
+    </AnimatedButton>
   </div>
 </template>
 
 <script setup lang="ts">
+import AnimatedButton from './AnimatedButton.vue'
+
 defineProps<{
   currentPage: number;
   hasMore: boolean;
@@ -51,28 +52,6 @@ defineEmits<{
   gap: 0.75rem;
   padding: 1.5rem 0;
   flex-wrap: wrap;
-}
-
-.btn-pagination {
-  padding: 0.5rem 1rem;
-  background: #fff;
-  border: 2px solid #000;
-  font-size: 0.875rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  min-width: 70px;
-}
-
-.btn-pagination:hover:not(:disabled) {
-  background: #000;
-  color: #fff;
-}
-
-.btn-pagination:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
-  border-color: #ccc;
 }
 
 .page-indicator {
