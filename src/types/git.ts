@@ -5,6 +5,10 @@ export interface Repository {
   owner: {
     login: string;
   };
+  html_url: string;
+  updated_at: string;
+  stargazers_count: number;
+  language: string | null;
 }
 
 export interface Commit {
@@ -20,6 +24,7 @@ export interface Commit {
     login: string;
     avatar_url: string;
   } | null;
+  html_url: string;
 }
 
 export interface CommitDetail extends Commit {
@@ -44,4 +49,13 @@ export interface FavoriteCommit {
   commit: Commit;
   repoName: string;
   username: string;
+  repoUrl: string;
+  commitUrl: string;
+  savedAt: string;
+}
+
+export interface GitProvider {
+  fetchRepositories(username: string, page?: number, perPage?: number): Promise<Repository[]>;
+  fetchCommits(username: string, repo: string, page?: number, perPage?: number): Promise<Commit[]>;
+  fetchCommitDetail(username: string, repo: string, sha: string): Promise<CommitDetail>;
 }
