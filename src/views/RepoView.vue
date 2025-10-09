@@ -5,35 +5,32 @@
       <h1>@{{ username }}'s Repositories</h1>
     </header>
 
-    <div v-if="store.error" class="error-banner">
-      {{ store.error }}
-    </div>
+    <ErrorBanner v-if="store.error" :message="store.error" :dismissible="true" @dismiss="store.clearError()" />
 
     <div class="content-grid">
       <section class="section">
         <h2>Repositories</h2>
-        <div v-if="store.loading && !store.repositories.length" class="loading">
-          Loading repositories...
-        </div>
-        <div v-else-if="!store.repositories.length" class="empty">
-          No repositories found
-        </div>
-        <div v-else class="repo-list">
-          <div
-            v-for="repo in store.repositories"
-            :key="repo.id"
-            class="repo-item"
-            :class="{ active: selectedRepo === repo.name }"
-            @click="selectRepo(repo.name)"
-          >
-            <h3>{{ repo.name }}</h3>
-            <p v-if="repo.description">{{ repo.description }}</p>
-            <p v-else class="no-description">No description</p>
+
+        <LoadingSpinner v-if="store.loading && !store.repositories.length" message="Loading repositories..." />
+
+        <EmptyState v-else-if="!store.repositories.length" icon="📁" title="No repositories found" />
+
+        <div v-else>
+          <div class="repo-list">
+            <div v-for="repo in store.repositories" :key="repo.id" class="repo-item"
+              :class="{ active: store.selectedRepo?.name === repo.name }" @click="selectRepo(repo)">
+              <h3>{{ repo.name }}</h3>
+              <p v-if="repo.description">{{ repo.description }}</p>
+              <p v-else class="no-description">No description</p>
+            </div>
           </div>
+
+          <Pagination :current-page="store.currentRepoPage" :has-more="store.hasMoreRepos" :disabled="store.loading"
+            @first="goToFirstRepoPage" @previous="previousRepoPage" @next="nextRepoPage" />
         </div>
       </section>
 
-      <section class="section" v-if="selectedRepo">
+      <section class="section" v-if="store.selectedRepo">
         <div class="section-header">
           <h2>Commits</h2>
           <select v-model="sortOrder" class="sort-select">
@@ -42,85 +39,55 @@
           </select>
         </div>
 
-        <div v-if="store.loading" class="loading">Loading commits...</div>
-        <div v-else-if="!displayedCommits.length" class="empty">
-          No commits found
-        </div>
-        <div v-else class="commit-list">
-          <div
-            v-for="commit in displayedCommits"
-            :key="commit.sha"
-            class="commit-item"
-          >
-            <div class="commit-header">
-              <div class="commit-info">
-                <p class="commit-message">{{ commit.commit.message }}</p>
-                <p class="commit-meta">
-                  {{ commit.commit.author.name }} • 
-                  {{ formatDate(commit.commit.author.date) }}
-                </p>
-              </div>
-              <div class="commit-actions">
-                <button
-                  @click="toggleFavorite(commit)"
-                  class="btn-icon"
-                  :class="{ favorited: store.isFavorite(commit.sha) }"
-                  :title="store.isFavorite(commit.sha) ? 'Remove from favorites' : 'Add to favorites'"
-                >
-                  {{ store.isFavorite(commit.sha) ? '★' : '☆' }}
-                </button>
-                <button
-                  @click="viewCommitDetail(commit.sha)"
-                  class="btn-small"
-                >
-                  View Details
-                </button>
+        <LoadingSpinner v-if="store.loading" message="Loading commits..." />
+
+        <EmptyState v-else-if="!displayedCommits.length" icon="📝" title="No commits found" />
+
+        <div v-else>
+          <div class="commit-list">
+            <div v-for="commit in displayedCommits" :key="commit.sha" class="commit-item">
+              <div class="commit-header">
+                <div class="commit-info">
+                  <p class="commit-message">{{ commit.commit.message }}</p>
+                  <p class="commit-meta">
+                    {{ commit.commit.author.name }} •
+                    {{ formatDate(commit.commit.author.date) }}
+                  </p>
+                </div>
+                <div class="commit-actions">
+                  <button @click="toggleFavorite(commit)" class="btn-icon"
+                    :class="{ favorited: store.isFavorite(commit.sha) }"
+                    :title="store.isFavorite(commit.sha) ? 'Remove from favorites' : 'Add to favorites'">
+                    {{ store.isFavorite(commit.sha) ? '★' : '☆' }}
+                  </button>
+                  <button @click="viewCommitDetail(commit.sha)" class="btn-small">
+                    View Details
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <div v-if="displayedCommits.length" class="pagination">
-          <button
-            @click="previousPage"
-            :disabled="store.currentPage === 1"
-            class="btn-small"
-          >
-            Previous
-          </button>
-          <span>Page {{ store.currentPage }}</span>
-          <button
-            @click="nextPage"
-            :disabled="displayedCommits.length < store.perPage"
-            class="btn-small"
-          >
-            Next
-          </button>
+          <Pagination :current-page="store.currentCommitPage" :has-more="store.hasMoreCommits" :disabled="store.loading"
+            @first="store.firstCommitPage()" @previous="store.previousCommitPage()" @next="store.nextCommitPage()" />
         </div>
       </section>
 
       <section class="section">
-        <h2>Favorites ({{ store.favorites.length }})</h2>
-        <div v-if="!store.favorites.length" class="empty">
-          No favorites yet
-        </div>
+        <h2>Favorites ({{ store.favoritesCount }})</h2>
+
+        <EmptyState v-if="!store.favorites.length" icon="⭐" title="No favorites yet"
+          description="Star commits to save them here" />
+
         <div v-else class="favorite-list">
-          <div
-            v-for="fav in store.favorites"
-            :key="fav.commit.sha"
-            class="favorite-item"
-          >
+          <div v-for="fav in store.favorites" :key="fav.commit.sha" class="favorite-item">
             <div class="favorite-info">
               <p class="favorite-repo">{{ fav.repoName }}</p>
               <p class="commit-message">{{ fav.commit.commit.message }}</p>
               <p class="commit-meta">{{ fav.commit.commit.author.name }}</p>
             </div>
-            <button
-              @click="store.removeFavorite(fav.commit.sha)"
-              class="btn-remove"
-              title="Remove from favorites"
-            >
-              x
+            <button @click="store.removeFromFavorites(fav.commit.sha)" class="btn-remove" title="Remove from favorites">
+              ×
             </button>
           </div>
         </div>
@@ -131,15 +98,16 @@
       <div class="modal-content" @click.stop>
         <div class="modal-header">
           <h2>Commit Details</h2>
-          <button @click="closeModal" class="btn-close">x</button>
+          <button @click="closeModal" class="btn-close">×</button>
         </div>
-        
-        <div v-if="store.loading" class="loading">Loading details...</div>
+
+        <LoadingSpinner v-if="store.loading" message="Loading details..." />
+
         <div v-else-if="store.currentCommitDetail" class="commit-detail">
           <div class="detail-section">
             <h3>{{ store.currentCommitDetail.commit.message }}</h3>
             <p class="commit-meta">
-              {{ store.currentCommitDetail.commit.author.name }}
+              {{ store.currentCommitDetail.commit.author.name }} •
               {{ formatDate(store.currentCommitDetail.commit.author.date) }}
             </p>
           </div>
@@ -161,11 +129,7 @@
 
           <div v-if="store.currentCommitDetail.files" class="files-section">
             <h3>Files Changed</h3>
-            <div
-              v-for="file in store.currentCommitDetail.files"
-              :key="file.filename"
-              class="file-item"
-            >
+            <div v-for="file in store.currentCommitDetail.files" :key="file.filename" class="file-item">
               <div class="file-header">
                 <span class="filename">{{ file.filename }}</span>
                 <span class="file-status" :class="file.status">{{ file.status }}</span>
@@ -185,15 +149,19 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import { useGithubStore } from '../stores/github';
-import type { Commit } from '../types/github';
+import { useRepositoryStore } from '../stores/repository';
+import type { Commit, Repository } from '../types/git';
+import { formatDate } from '../utils/date';
+import LoadingSpinner from '../components/LoadingSpinner.vue';
+import EmptyState from '../components/EmptyState.vue';
+import ErrorBanner from '../components/ErrorBanner.vue';
+import Pagination from '../components/Pagination.vue';
 
 const props = defineProps<{
   username: string;
 }>();
 
-const store = useGithubStore();
-const selectedRepo = ref('');
+const store = useRepositoryStore();
 const sortOrder = ref<'newest' | 'oldest'>('newest');
 const showDetailModal = ref(false);
 
@@ -202,54 +170,45 @@ const displayedCommits = computed(() => {
 });
 
 onMounted(() => {
-  if (!store.repositories.length) {
-    store.fetchRepositories(props.username);
+  if (!store.repositories.length || store.currentUsername !== props.username) {
+    store.loadRepositories(props.username);
   }
 });
 
-const selectRepo = async (repoName: string) => {
-  selectedRepo.value = repoName;
-  store.clearCommits();
-  await store.fetchCommits(props.username, repoName);
+const selectRepo = async (repo: Repository) => {
+  await store.selectRepository(repo);
 };
 
-const toggleFavorite = (commit: Commit) => {
-  if (store.isFavorite(commit.sha)) {
-    store.removeFavorite(commit.sha);
-  } else {
-    store.addFavorite(commit, selectedRepo.value, props.username);
+const nextRepoPage = async () => {
+  await store.loadRepositories(props.username, store.currentRepoPage + 1);
+};
+
+const previousRepoPage = async () => {
+  if (store.currentRepoPage > 1) {
+    await store.loadRepositories(props.username, store.currentRepoPage - 1);
   }
 };
 
+const goToFirstRepoPage = async () => {
+  if (store.currentRepoPage !== 1) {
+    await store.loadRepositories(props.username, 1);
+  }
+};
+
+const toggleFavorite = (commit: Commit) => {
+  if (!store.selectedRepo) return;
+  store.toggleFavorite(commit, store.selectedRepo.name, props.username);
+};
+
 const viewCommitDetail = async (sha: string) => {
+  if (!store.selectedRepo) return;
   showDetailModal.value = true;
-  await store.fetchCommitDetail(props.username, selectedRepo.value, sha);
+  await store.loadCommitDetail(props.username, store.selectedRepo.name, sha);
 };
 
 const closeModal = () => {
   showDetailModal.value = false;
   store.currentCommitDetail = null;
-};
-
-const nextPage = async () => {
-  await store.fetchCommits(props.username, selectedRepo.value, store.currentPage + 1);
-};
-
-const previousPage = async () => {
-  if (store.currentPage > 1) {
-    await store.fetchCommits(props.username, selectedRepo.value, store.currentPage - 1);
-  }
-};
-
-const formatDate = (dateString: string): string => {
-  const date = new Date(dateString);
-  return date.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
 };
 </script>
 
@@ -280,14 +239,6 @@ const formatDate = (dateString: string): string => {
 h1 {
   font-size: 2rem;
   color: #000;
-}
-
-.error-banner {
-  padding: 1rem;
-  background: #f5f5f5;
-  border: 2px solid #000;
-  margin-bottom: 2rem;
-  font-weight: 500;
 }
 
 .content-grid {
@@ -329,13 +280,9 @@ h3 {
   cursor: pointer;
 }
 
-.loading, .empty {
-  padding: 2rem;
-  text-align: center;
-  color: #666;
-}
-
-.repo-list, .commit-list, .favorite-list {
+.repo-list,
+.commit-list,
+.favorite-list {
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -432,26 +379,12 @@ h3 {
   cursor: pointer;
   transition: all 0.2s;
   white-space: nowrap;
+  font-weight: 500;
 }
 
 .btn-small:hover:not(:disabled) {
   background: #000;
   color: #fff;
-}
-
-.btn-small:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
-}
-
-.pagination {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 1rem;
-  margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 2px solid #ddd;
 }
 
 .favorite-item {

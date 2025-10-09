@@ -1,27 +1,42 @@
 <template>
   <div class="home-container">
-    <div class="home-content">
-      <h1>GitHub Commit Explorer</h1>
-      <p class="subtitle">Explore repositories and commits from any GitHub user</p>
-      
-      <form @submit.prevent="handleSubmit" class="search-form">
-        <div class="form-group">
-          <label for="username">GitHub Username</label>
-          <input
-            id="username"
-            v-model="username"
-            type="text"
-            placeholder="e.g., octocat"
-            :class="{ 'input-error': errors.username }"
-            @input="clearError"
-          />
-          <span v-if="errors.username" class="error-message">{{ errors.username }}</span>
-        </div>
-        
-        <button type="submit" class="btn-primary" :disabled="loading">
-          {{ loading ? 'Searching...' : 'Explore Repositories' }}
+    <header class="header">
+      <h1>Git Commit Explorer</h1>
+      <p class="subtitle">Search for any GitHub user's repositories</p>
+    </header>
+
+    <div class="search-section">
+      <form @submit.prevent="handleSearch" class="search-form">
+        <input
+          v-model="username"
+          type="text"
+          placeholder="Enter GitHub username..."
+          class="search-input"
+          :disabled="store.loading"
+        />
+        <button type="submit" class="search-button" :disabled="store.loading || !username.trim()">
+          {{ store.loading ? 'Searching...' : 'Search' }}
         </button>
       </form>
+    </div>
+
+    <ErrorBanner
+      v-if="store.error"
+      :message="store.error"
+      :dismissible="true"
+      @dismiss="store.clearError()"
+    />
+
+    <div v-if="searched && !store.loading && !store.error" class="results-section">
+      <EmptyState
+        v-if="!store.repositories.length"
+        icon="📁"
+        title="No repositories found"
+        description="This user doesn't have any public repositories."
+      />
+      <div v-else>
+        <p class="results-count">Found {{ store.repositories.length }} repositories</p>
+      </div>
     </div>
   </div>
 </template>
@@ -29,46 +44,23 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { useGithubStore } from '../stores/github';
+import { useRepositoryStore } from '../stores/repository';
+import ErrorBanner from '../components/ErrorBanner.vue';
+import EmptyState from '../components/EmptyState.vue';
 
 const router = useRouter();
-const store = useGithubStore();
-
+const store = useRepositoryStore();
 const username = ref('');
-const errors = ref<{ username?: string }>({});
-const loading = ref(false);
+const searched = ref(false);
 
-const validateUsername = (): boolean => {
-  errors.value = {};
+const handleSearch = async () => {
+  if (!username.value.trim()) return;
   
-  if (!username.value.trim()) {
-    errors.value.username = 'Username is required';
-    return false;
-  }
+  searched.value = true;
+  await store.loadRepositories(username.value.trim());
   
-  if (!/^[a-z\d](?:[a-z\d]|-(?=[a-z\d])){0,38}$/i.test(username.value)) {
-    errors.value.username = 'Invalid GitHub username format';
-    return false;
-  }
-  
-  return true;
-};
-
-const clearError = () => {
-  errors.value = {};
-};
-
-const handleSubmit = async () => {
-  if (!validateUsername()) return;
-  
-  loading.value = true;
-  await store.fetchRepositories(username.value);
-  loading.value = false;
-  
-  if (store.error) {
-    errors.value.username = store.error;
-  } else {
-    router.push(`/repos/${username.value}`);
+  if (!store.error && store.repositories.length > 0) {
+    router.push(`/repos/${username.value.trim()}`);
   }
 };
 </script>
@@ -77,14 +69,17 @@ const handleSubmit = async () => {
 .home-container {
   min-height: 100vh;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 2rem;
+  max-width: 600px;
+  margin: 0 auto;
 }
 
-.home-content {
-  max-width: 500px;
-  width: 100%;
+.header {
+  text-align: center;
+  margin-bottom: 3rem;
 }
 
 h1 {
@@ -94,53 +89,41 @@ h1 {
 }
 
 .subtitle {
+  font-size: 1.125rem;
   color: #666;
+}
+
+.search-section {
+  width: 100%;
   margin-bottom: 2rem;
-  font-size: 1.1rem;
 }
 
 .search-form {
   display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
+  gap: 1rem;
+  width: 100%;
 }
 
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-label {
-  font-weight: 600;
-  color: #000;
-}
-
-input {
-  padding: 0.75rem 1rem;
-  border: 2px solid #ddd;
-  background: #fff;
+.search-input {
+  flex: 1;
+  padding: 1rem;
+  border: 2px solid #000;
   font-size: 1rem;
-  transition: border-color 0.2s;
+  background: #fff;
 }
 
-input:focus {
+.search-input:focus {
   outline: none;
   border-color: #000;
 }
 
-input.input-error {
-  border-color: #000;
+.search-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
-.error-message {
-  color: #000;
-  font-size: 0.875rem;
-  font-weight: 500;
-}
-
-.btn-primary {
-  padding: 0.875rem 1.5rem;
+.search-button {
+  padding: 1rem 2rem;
   background: #000;
   color: #fff;
   border: 2px solid #000;
@@ -148,15 +131,26 @@ input.input-error {
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
+  white-space: nowrap;
 }
 
-.btn-primary:hover:not(:disabled) {
+.search-button:hover:not(:disabled) {
   background: #fff;
   color: #000;
 }
 
-.btn-primary:disabled {
+.search-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.results-section {
+  width: 100%;
+}
+
+.results-count {
+  text-align: center;
+  color: #666;
+  font-size: 0.875rem;
 }
 </style>
