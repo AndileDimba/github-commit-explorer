@@ -16,10 +16,11 @@
       @dismiss="store.clearError()"
     />
 
-    <LoadingSpinner 
-      v-if="store.loading && !store.repositories.length" 
-      message="Loading repositories..." 
-    />
+    <SkeletonLoader 
+      v-if="store.loading" 
+      :count="6" 
+      variant="repo-card" 
+     />
 
     <EmptyState
       v-else-if="!store.repositories.length && !store.loading"
@@ -94,10 +95,10 @@ import { onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useRepositoryStore } from '../stores/repository';
 import { formatDate } from '../utils/date';
-import LoadingSpinner from '../components/LoadingSpinner.vue';
 import EmptyState from '../components/EmptyState.vue';
 import ErrorBanner from '../components/ErrorBanner.vue';
 import Pagination from '../components/Pagination.vue';
+import SkeletonLoader from '../components/SkeletonLoader.vue';
 
 const props = defineProps<{
   username: string;

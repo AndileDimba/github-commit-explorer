@@ -308,7 +308,7 @@ const clearAllFavorites = () => {
 
 .favorite-card:hover {
   background: #fafafa;
-  transform: translateY(4ppx);
+  transform: translateY(-2px);
   box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.1);
 }
 
