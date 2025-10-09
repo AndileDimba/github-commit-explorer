@@ -308,6 +308,8 @@ const clearAllFavorites = () => {
 
 .favorite-card:hover {
   background: #fafafa;
+  transform: translateY(4ppx);
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.1);
 }
 
 .favorite-main {
@@ -447,7 +449,7 @@ const clearAllFavorites = () => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.85);
+  background: rgba(0, 0, 0, 0.9);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -456,60 +458,68 @@ const clearAllFavorites = () => {
 }
 
 .modal-content {
-  background: #fff;
-  border: 3px solid #000;
-  max-width: 900px;
+  background: #1e1e1e;
+  border: 1px solid #3e3e3e;
+  max-width: 1000px;
   width: 100%;
   max-height: 90vh;
   overflow-y: auto;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
 }
 
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.5rem;
-  border-bottom: 2px solid #000;
+  padding: 1rem 1.5rem;
+  background: #2d2d2d;
+  border-bottom: 1px solid #3e3e3e;
   position: sticky;
   top: 0;
-  background: #fff;
   z-index: 1;
 }
 
 .modal-header h2 {
-  font-size: 1.5rem;
-  color: #000;
+  font-size: 1.25rem;
+  color: #cccccc;
+  font-weight: 500;
 }
 
 .btn-close {
   padding: 0.25rem 0.75rem;
-  background: #fff;
-  border: 2px solid #000;
-  font-size: 2rem;
+  background: transparent;
+  border: 1px solid #555;
+  color: #cccccc;
+  font-size: 1.5rem;
   cursor: pointer;
   line-height: 1;
   transition: all 0.2s;
+  border-radius: 3px;
 }
 
 .btn-close:hover {
-  background: #000;
+  background: #3e3e3e;
+  border-color: #777;
   color: #fff;
 }
 
 .commit-detail {
   padding: 1.5rem;
+  background: #1e1e1e;
+  color: #cccccc;
 }
 
 .detail-section {
   margin-bottom: 1.5rem;
   padding-bottom: 1.5rem;
-  border-bottom: 2px solid #ddd;
+  border-bottom: 1px solid #3e3e3e;
 }
 
 .detail-section h3 {
-  font-size: 1.25rem;
+  font-size: 1.125rem;
   margin-bottom: 0.75rem;
-  color: #000;
+  color: #ffffff;
+  font-weight: 500;
 }
 
 .detail-meta {
@@ -517,24 +527,25 @@ const clearAllFavorites = () => {
   align-items: center;
   gap: 0.5rem;
   font-size: 0.875rem;
-  color: #666;
+  color: #858585;
   flex-wrap: wrap;
 }
 
 .detail-link {
-  font-family: monospace;
-  color: #000;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  color: #4fc3f7;
   text-decoration: none;
   padding: 0.125rem 0.375rem;
-  background: #f5f5f5;
-  border: 1px solid #ddd;
-  font-weight: 600;
+  background: #2d2d2d;
+  border: 1px solid #3e3e3e;
+  font-weight: 500;
+  border-radius: 3px;
+  transition: all 0.2s;
 }
 
 .detail-link:hover {
-  background: #000;
-  color: #fff;
-  border-color: #000;
+  background: #3e3e3e;
+  border-color: #4fc3f7;
 }
 
 .stats-section {
@@ -543,52 +554,58 @@ const clearAllFavorites = () => {
   gap: 1rem;
   margin-bottom: 1.5rem;
   padding-bottom: 1.5rem;
-  border-bottom: 2px solid #ddd;
+  border-bottom: 1px solid #3e3e3e;
 }
 
 .stat-card {
-  border: 2px solid #000;
+  background: #252526;
+  border: 1px solid #3e3e3e;
   padding: 1rem;
   text-align: center;
+  border-radius: 4px;
 }
 
 .stat-value {
   font-size: 2rem;
   font-weight: 700;
-  color: #000;
+  color: #ffffff;
   margin-bottom: 0.25rem;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
 }
 
 .stat-card.additions .stat-value {
-  color: #000;
+  color: #4ec9b0;
 }
 
 .stat-card.deletions .stat-value {
-  color: #666;
+  color: #f48771;
 }
 
 .stat-label {
   font-size: 0.875rem;
-  color: #666;
-  font-weight: 500;
+  color: #858585;
+  font-weight: 400;
 }
 
 .files-section h3 {
-  font-size: 1.25rem;
+  font-size: 1.125rem;
   margin-bottom: 1rem;
-  color: #000;
+  color: #ffffff;
+  font-weight: 500;
 }
 
 .file-card {
   margin-bottom: 1.5rem;
-  border: 2px solid #ddd;
-  background: #fafafa;
+  border: 1px solid #3e3e3e;
+  background: #252526;
+  border-radius: 4px;
+  overflow: hidden;
 }
 
 .file-header {
-  padding: 1rem;
-  background: #fff;
-  border-bottom: 2px solid #ddd;
+  padding: 0.75rem 1rem;
+  background: #2d2d2d;
+  border-bottom: 1px solid #3e3e3e;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -597,10 +614,11 @@ const clearAllFavorites = () => {
 }
 
 .filename {
-  font-family: monospace;
-  font-weight: 600;
-  color: #000;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-weight: 500;
+  color: #4fc3f7;
   word-break: break-all;
+  font-size: 0.875rem;
 }
 
 .file-meta {
@@ -611,25 +629,32 @@ const clearAllFavorites = () => {
 
 .file-status {
   padding: 0.25rem 0.5rem;
-  border: 2px solid #000;
-  font-size: 0.75rem;
-  font-weight: 700;
+  border: 1px solid #3e3e3e;
+  font-size: 0.7rem;
+  font-weight: 600;
   text-transform: uppercase;
-  background: #fff;
+  background: #252526;
+  color: #858585;
+  border-radius: 3px;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
 }
 
 .file-status.modified {
-  background: #f5f5f5;
+  background: #1e3a5f;
+  color: #4fc3f7;
+  border-color: #4fc3f7;
 }
 
 .file-status.added {
-  background: #000;
-  color: #fff;
+  background: #1e3a1e;
+  color: #4ec9b0;
+  border-color: #4ec9b0;
 }
 
 .file-status.removed {
-  background: #fff;
-  color: #000;
+  background: #3a1e1e;
+  color: #f48771;
+  border-color: #f48771;
 }
 
 .file-changes {
@@ -637,34 +662,84 @@ const clearAllFavorites = () => {
   gap: 0.75rem;
   font-size: 0.875rem;
   font-weight: 600;
-  font-family: monospace;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
 }
 
 .additions {
-  color: #000;
+  color: #4ec9b0;
 }
 
 .deletions {
-  color: #666;
+  color: #f48771;
 }
 
 .file-patch {
   padding: 1rem;
   overflow-x: auto;
-  font-size: 0.875rem;
-  font-family: monospace;
-  line-height: 1.5;
-  background: #fafafa;
+  font-size: 0.8rem;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  line-height: 1.6;
+  background: #1e1e1e;
   margin: 0;
-  white-space: pre-wrap;
-  word-break: break-all;
+  white-space: pre;
+  color: #d4d4d4;
+  tab-size: 4;
+}
+
+.file-patch {
+  background: #1e1e1e;
 }
 
 .no-patch {
-  padding: 1rem;
-  color: #999;
+  padding: 1.5rem;
+  color: #858585;
   font-style: italic;
   text-align: center;
+  background: #1e1e1e;
+  font-size: 0.875rem;
+}
+
+.modal-content::-webkit-scrollbar {
+  width: 12px;
+}
+
+.modal-content::-webkit-scrollbar-track {
+  background: #1e1e1e;
+}
+
+.modal-content::-webkit-scrollbar-thumb {
+  background: #424242;
+  border-radius: 6px;
+}
+
+.modal-content::-webkit-scrollbar-thumb:hover {
+  background: #4e4e4e;
+}
+
+.file-patch::-webkit-scrollbar {
+  height: 8px;
+}
+
+.file-patch::-webkit-scrollbar-track {
+  background: #252526;
+}
+
+.file-patch::-webkit-scrollbar-thumb {
+  background: #424242;
+  border-radius: 4px;
+}
+
+.file-patch::-webkit-scrollbar-thumb:hover {
+  background: #4e4e4e;
+}
+
+.file-patch {
+  counter-reset: line-number;
+}
+
+.file-patch::before {
+  content: '';
+  display: block;
 }
 
 .confirm-modal {

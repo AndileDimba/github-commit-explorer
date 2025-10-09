@@ -45,7 +45,7 @@
             @click.stop
             title="View on GitHub"
           >
-            <span class="github-icon">⧉</span>
+            <span class="github-icon">↗</span>
           </a>
         </div>
         
