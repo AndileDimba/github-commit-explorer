@@ -17,30 +17,26 @@ defineProps<{
 
 <style scoped>
 .empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 3rem 2rem;
   text-align: center;
+  padding: 3rem 2rem;
 }
 
 .empty-icon {
-  font-size: 3rem;
+  font-size: 4rem;
   margin-bottom: 1rem;
-  opacity: 0.3;
+  opacity: 0.5;
 }
 
 .empty-title {
-  font-size: 1.25rem;
-  margin: 0 0 0.5rem 0;
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
   color: #000;
 }
 
 .empty-description {
   color: #666;
-  font-size: 0.875rem;
+  font-size: 1rem;
   max-width: 400px;
-  margin: 0;
+  margin: 0 auto;
 }
 </style>

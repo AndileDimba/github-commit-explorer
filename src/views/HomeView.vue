@@ -2,7 +2,7 @@
   <div class="home-container">
     <header class="header">
       <h1>Git Commit Explorer</h1>
-      <p class="subtitle">Search for any GitHub user's repositories</p>
+      <p class="subtitle">Explore GitHub repositories and commits</p>
     </header>
 
     <div class="search-section">
@@ -13,6 +13,7 @@
           placeholder="Enter GitHub username..."
           class="search-input"
           :disabled="store.loading"
+          autofocus
         />
         <button type="submit" class="search-button" :disabled="store.loading || !username.trim()">
           {{ store.loading ? 'Searching...' : 'Search' }}
@@ -27,16 +28,23 @@
       @dismiss="store.clearError()"
     />
 
-    <div v-if="searched && !store.loading && !store.error" class="results-section">
+    <div v-if="searched && !store.loading && !store.error && store.repositories.length === 0" class="results-section">
       <EmptyState
-        v-if="!store.repositories.length"
         icon="📁"
         title="No repositories found"
         description="This user doesn't have any public repositories."
       />
-      <div v-else>
-        <p class="results-count">Found {{ store.repositories.length }} repositories</p>
-      </div>
+    </div>
+
+    <div v-if="store.favorites.length > 0" class="quick-links">
+      <h2>Quick Access</h2>
+      <router-link to="/favorites" class="quick-link-card">
+        <span class="quick-link-icon">⭐</span>
+        <div class="quick-link-info">
+          <h3>Your Favorites</h3>
+          <p>{{ store.favoritesCount }} saved commits</p>
+        </div>
+      </router-link>
     </div>
   </div>
 </template>
@@ -59,15 +67,15 @@ const handleSearch = async () => {
   searched.value = true;
   await store.loadRepositories(username.value.trim());
   
-  if (!store.error && store.repositories.length > 0) {
-    router.push(`/repos/${username.value.trim()}`);
+  if (!store.error) {
+    router.push(`/users/${username.value.trim()}`);
   }
 };
 </script>
 
 <style scoped>
 .home-container {
-  min-height: 100vh;
+  min-height: calc(100vh - 80px);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -115,6 +123,7 @@ h1 {
 .search-input:focus {
   outline: none;
   border-color: #000;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1);
 }
 
 .search-input:disabled {
@@ -146,11 +155,66 @@ h1 {
 
 .results-section {
   width: 100%;
+  margin-top: 2rem;
 }
 
-.results-count {
-  text-align: center;
-  color: #666;
+.quick-links {
+  width: 100%;
+  margin-top: 3rem;
+}
+
+.quick-links h2 {
+  font-size: 1.25rem;
+  margin-bottom: 1rem;
+  color: #000;
+}
+
+.quick-link-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.5rem;
+  border: 2px solid #000;
+  background: #fff;
+  text-decoration: none;
+  color: #000;
+  transition: all 0.2s;
+}
+
+.quick-link-card:hover {
+  background: #000;
+  color: #fff;
+}
+
+.quick-link-icon {
+  font-size: 2rem;
+}
+
+.quick-link-info h3 {
+  font-size: 1.125rem;
+  margin-bottom: 0.25rem;
+}
+
+.quick-link-info p {
   font-size: 0.875rem;
+  color: #666;
+}
+
+.quick-link-card:hover .quick-link-info p {
+  color: #ccc;
+}
+
+@media (max-width: 640px) {
+  h1 {
+    font-size: 2rem;
+  }
+  
+  .search-form {
+    flex-direction: column;
+  }
+  
+  .search-button {
+    width: 100%;
+  }
 }
 </style>

@@ -1,29 +1,25 @@
 <template>
-  <router-view />
+  <div id="app">
+    <AppNavigation />
+    <main class="main-content">
+      <RouterView />
+    </main>
+  </div>
 </template>
 
 <script setup lang="ts">
+import { RouterView } from 'vue-router'
+import AppNavigation from './components/AppNavigation.vue'
 </script>
 
-<style>
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+<style scoped>
+#app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-  background: #fff;
-  color: #000;
-  line-height: 1.6;
-}
-
-button {
-  font-family: inherit;
-}
-
-input, select {
-  font-family: inherit;
+.main-content {
+  flex: 1;
 }
 </style>

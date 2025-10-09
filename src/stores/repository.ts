@@ -1,4 +1,3 @@
-// src/stores/repository.ts
 import { defineStore } from 'pinia';
 import type { Repository, Commit, CommitDetail, FavoriteCommit } from '../types/git';
 import { createGitProvider } from '../services/gitProvider';
