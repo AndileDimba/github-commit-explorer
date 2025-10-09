@@ -52,12 +52,17 @@ Live site: https://github-commit-explorer.vercel.app/
   - ├── components/          # Reusable components
   - ├── views/              # Page components
     - │   ├── HomeView.vue    # Search page
-    - │     └── RepoView.vue    # Repository and commits page
+    - │     └── RepositoryCommitsView.vue    # Repository and commits page
+    - │     └── UserRepositoryView.vue    # Repository page
+    - │     └── Favorites.vue    # Favorites Commits page
   - ├── stores/             # Pinia stores
-    - │   ├── github.ts       # Main store
+    - │   ├── git.ts       # Main store
     - │   └── __tests__/      # Store tests
   - ├── types/              # TypeScript interfaces
-     - │   └── github.ts       # GitHub API types
+     - │   └── git.ts       # GitHub API types
+   - ├── utils/              # TypeScript utilities
+     - │   └── date.ts       # date utility
+     - │   └── storage.ts       # storage utility
    - ├── router/             # Vue Router configuration
       - │   └── index.ts
   - ├── App.vue             # Root component
