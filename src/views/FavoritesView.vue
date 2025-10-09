@@ -1,334 +1,401 @@
 <template>
-  <div class="favorites-container">
-    <header class="page-header">
-      <h1>Your Favorites</h1>
-      <p class="subtitle" v-if="store.favoritesCount > 0">
-        {{ store.favoritesCount }} saved {{ store.favoritesCount === 1 ? 'commit' : 'commits' }}
-      </p>
-    </header>
-
-    <EmptyState
-      v-if="store.favorites.length === 0"
-      icon="⭐"
-      title="No favorites yet"
-      description="Star commits from any repository to save them here for quick access."
-    >
-      <template #action>
-        <router-link to="/" class="cta-button">
-          Search Repositories
-        </router-link>
-      </template>
-    </EmptyState>
-
-    <div v-else class="favorites-content">
-      <div
-        v-for="(commits, repoName) in store.favoritesByRepo"
-        :key="repoName"
-        class="repo-group"
-      >
-        <div class="repo-group-header">
-          <h2>{{ repoName }}</h2>
-          <span class="commit-count">{{ commits.length }} {{ commits.length === 1 ? 'commit' : 'commits' }}</span>
-        </div>
-
-        <div class="commits-list">
-          <div
-            v-for="fav in commits"
-            :key="fav.commit.sha"
-            class="favorite-card"
-          >
-            <div class="favorite-main">
-              <div class="favorite-info">
-                <h3 class="commit-message">{{ fav.commit.commit.message }}</h3>
-                <div class="commit-meta">
-                  <span class="commit-author">{{ fav.commit.commit.author.name }}</span>
-                  <span class="meta-separator">•</span>
-                  <span class="commit-date">{{ formatDate(fav.commit.commit.author.date) }}</span>
-                  <span class="meta-separator">•</span>
-                  <a 
-                    :href="fav.commit.html_url" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    class="commit-sha"
-                    @click.stop
-                  >
-                    {{ fav.commit.sha.substring(0, 7) }}
-                  </a>
-                </div>
-                <div class="favorite-source">
-                  <router-link 
-                    :to="`/users/${fav.username}/${fav.repoName}`"
-                    class="source-link"
-                  >
-                    View in @{{ fav.username }}/{{ fav.repoName }} →
-                  </router-link>
-                </div>
-              </div>
-
-              <div class="favorite-actions">
-                <button
-                  @click="viewCommitDetail(fav)"
-                  class="btn-detail"
-                  title="View commit details"
-                >
-                  View Diff
-                </button>
-                <button
-                  @click="store.removeFromFavorites(fav.commit.sha)"
-                  class="btn-remove"
-                  title="Remove from favorites"
-                >
-                  ★
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="actions-footer">
-        <button @click="confirmClearAll" class="btn-clear-all">
-          Clear All Favorites
-        </button>
-      </div>
-    </div>
-
-    <div v-if="showDetailModal" class="modal-overlay" @click="closeModal">
-      <div class="modal-content" @click.stop>
-        <div class="modal-header">
-          <h2>Commit Details</h2>
-          <button @click="closeModal" class="btn-close">×</button>
-        </div>
-
-        <LoadingSpinner v-if="store.loading" message="Loading details..." />
-
-        <div v-else-if="store.currentCommitDetail" class="commit-detail">
-          <div class="detail-section">
-            <h3>{{ store.currentCommitDetail.commit.message }}</h3>
-            <div class="detail-meta">
-              <span>{{ store.currentCommitDetail.commit.author.name }}</span>
-              <span class="meta-separator">•</span>
-              <span>{{ formatDate(store.currentCommitDetail.commit.author.date) }}</span>
-              <span class="meta-separator">•</span>
-              <a 
-                :href="store.currentCommitDetail.html_url" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                class="detail-link"
-              >
-                {{ store.currentCommitDetail.sha.substring(0, 7) }}
-              </a>
-            </div>
-          </div>
-
-          <div v-if="store.currentCommitDetail.stats" class="stats-section">
-            <div class="stat-card">
-              <div class="stat-value">{{ store.currentCommitDetail.stats.total }}</div>
-              <div class="stat-label">Files Changed</div>
-            </div>
-            <div class="stat-card additions">
-              <div class="stat-value">+{{ store.currentCommitDetail.stats.additions }}</div>
-              <div class="stat-label">Additions</div>
-            </div>
-            <div class="stat-card deletions">
-              <div class="stat-value">-{{ store.currentCommitDetail.stats.deletions }}</div>
-              <div class="stat-label">Deletions</div>
-            </div>
-          </div>
-
-          <div v-if="store.currentCommitDetail.files && store.currentCommitDetail.files.length > 0" class="files-section">
-            <h3>Changed Files</h3>
-            <div
-              v-for="file in store.currentCommitDetail.files"
-              :key="file.filename"
-              class="file-card"
-            >
-              <div class="file-header">
-                <span class="filename">{{ file.filename }}</span>
-                <div class="file-meta">
-                  <span class="file-status" :class="file.status">{{ file.status }}</span>
-                  <span class="file-changes">
-                    <span class="additions">+{{ file.additions }}</span>
-                    <span class="deletions">-{{ file.deletions }}</span>
-                  </span>
-                </div>
-              </div>
-              <pre v-if="file.patch" class="file-patch">{{ file.patch }}</pre>
-              <p v-else class="no-patch">No diff available</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div v-if="showConfirmModal" class="modal-overlay" @click="showConfirmModal = false">
-      <div class="confirm-modal" @click.stop>
-        <h2>Clear All Favorites?</h2>
-        <p>This will remove all {{ store.favoritesCount }} saved commits. This action cannot be undone.</p>
-        <div class="confirm-actions">
-          <button @click="showConfirmModal = false" class="btn-cancel">
-            Cancel
-          </button>
-          <button @click="clearAllFavorites" class="btn-confirm">
+  <div class="favorites-view">
+    <div class="favorites-header">
+      <div class="header-content">
+        <h1 class="page-title">
+          <span class="title-icon">⭐</span>
+          Favorite Commits
+        </h1>
+        <p class="page-description">
+          Your saved commits across all repositories
+        </p>
+        
+        <div v-if="store.favoritesCount > 0" class="header-actions">
+          <span class="favorites-count">{{ store.favoritesCount }} favorite{{ store.favoritesCount !== 1 ? 's' : '' }}</span>
+          <button @click="showClearModal = true" class="clear-all-button">
+            <span class="button-icon">🗑</span>
             Clear All
           </button>
         </div>
       </div>
     </div>
+
+    <div class="favorites-container">
+      <div v-if="store.favorites.length === 0" class="empty-state">
+        <span class="empty-icon">⭐</span>
+        <h2 class="empty-title">No Favorites Yet</h2>
+        <p class="empty-message">
+          Start exploring repositories and save your favorite commits!
+        </p>
+        <router-link to="/" class="explore-button">
+          <span class="button-icon">🔍</span>
+          Explore Repositories
+        </router-link>
+      </div>
+
+      <div v-else class="favorites-list">
+        <div
+          v-for="favorite in store.favorites"
+          :key="favorite.commit.sha"
+          class="favorite-card"
+        >
+          <div class="card-header">
+            <div class="repo-badge">
+              <span class="badge-icon">📦</span>
+              <span class="repo-name">{{ favorite.repoName }}</span>
+            </div>
+            <button
+              @click="removeFavorite(favorite.commit.sha)"
+              class="remove-button"
+              aria-label="Remove from favorites"
+            >
+              <span class="remove-icon">✕</span>
+            </button>
+          </div>
+
+          <div class="commit-content">
+            <div class="commit-header">
+              <img
+                v-if="favorite.commit.author?.avatar_url"
+                :src="favorite.commit.author.avatar_url"
+                :alt="favorite.commit.commit.author.name"
+                class="author-avatar"
+              />
+              <div v-else class="author-avatar-placeholder">
+                {{ favorite.commit.commit.author.name.charAt(0).toUpperCase() }}
+              </div>
+
+              <div class="commit-info">
+                <h3 class="commit-message">{{ favorite.commit.commit.message }}</h3>
+                <div class="commit-meta">
+                  <span class="author-name">{{ favorite.commit.commit.author.name }}</span>
+                  <span class="meta-divider">•</span>
+                  <span class="commit-date">{{ formatDate(favorite.commit.commit.author.date) }}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="commit-actions">
+              <button @click="viewCommitDetails(favorite)" class="action-button secondary">
+                <span class="button-icon">📄</span>
+                View Diff
+              </button>
+              <a
+                :href="favorite.commitUrl"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="action-button secondary"
+              >
+                <span class="button-icon">↗</span>
+                GitHub
+              </a>
+              <div class="commit-sha">
+                <span class="sha-label">SHA:</span>
+                <code class="sha-value">{{ favorite.commit.sha.substring(0, 7) }}</code>
+              </div>
+            </div>
+          </div>
+
+          <div class="card-footer">
+            <span class="saved-date">
+              <span class="footer-icon">🕒</span>
+              Saved {{ formatDate(favorite.savedAt) }}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <CommitDetailsModal
+      v-if="selectedFavorite"
+      :username="selectedFavorite.username"
+      :repo-name="selectedFavorite.repoName"
+      :commit-sha="selectedFavorite.commit.sha"
+      @close="selectedFavorite = null"
+    />
+
+    <ConfirmModal
+      :show="showClearModal"
+      title="Clear All Favorites"
+      :message="`Are you sure you want to remove all ${store.favoritesCount} favorite commits? This action cannot be undone.`"
+      confirm-text="Clear All"
+      cancel-text="Cancel"
+      icon="🗑"
+      @confirm="handleClearAll"
+      @close="showClearModal = false"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRepositoryStore } from '../stores/repository';
-import type { FavoriteCommit } from '../types/git';
 import { formatDate } from '../utils/date';
-import LoadingSpinner from '../components/LoadingSpinner.vue';
-import EmptyState from '../components/EmptyState.vue';
+import CommitDetailsModal from '../components/CommitDetailsModal.vue';
+import ConfirmModal from '../components/ConfirmModal.vue';
+import type { FavoriteCommit } from '../types/git';
 
 const store = useRepositoryStore();
-const showDetailModal = ref(false);
-const showConfirmModal = ref(false);
-const currentFavorite = ref<FavoriteCommit | null>(null);
+const selectedFavorite = ref<FavoriteCommit | null>(null);
+const showClearModal = ref(false);
 
-const viewCommitDetail = async (fav: FavoriteCommit) => {
-  currentFavorite.value = fav;
-  showDetailModal.value = true;
-  await store.loadCommitDetail(fav.username, fav.repoName, fav.commit.sha);
+const removeFavorite = (sha: string) => {
+  store.removeFromFavorites(sha);
 };
 
-const closeModal = () => {
-  showDetailModal.value = false;
-  store.currentCommitDetail = null;
-  currentFavorite.value = null;
+const handleClearAll = () => {
+  store.clearAllFavorites();
 };
 
-const confirmClearAll = () => {
-  showConfirmModal.value = true;
-};
-
-const clearAllFavorites = () => {
-  const allShas = store.favorites.map(f => f.commit.sha);
-  allShas.forEach(sha => store.removeFromFavorites(sha));
-  showConfirmModal.value = false;
+const viewCommitDetails = (favorite: FavoriteCommit) => {
+  selectedFavorite.value = favorite;
 };
 </script>
 
 <style scoped>
-.favorites-container {
-  min-height: calc(100vh - 80px);
-  padding: 2rem;
+.favorites-view {
+  min-height: 100vh;
+  background: var(--color-background);
+}
+
+.favorites-header {
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  padding: 2rem 1.5rem;
+}
+
+.header-content {
   max-width: 1200px;
   margin: 0 auto;
-}
-
-.page-header {
-  margin-bottom: 2rem;
-  padding-bottom: 1rem;
-  border-bottom: 3px solid #000;
-}
-
-.page-header h1 {
-  font-size: 2rem;
-  margin-bottom: 0.5rem;
-  color: #000;
-}
-
-.subtitle {
-  font-size: 1rem;
-  color: #666;
-}
-
-.cta-button {
-  display: inline-block;
-  padding: 1rem 2rem;
-  background: #000;
-  color: #fff;
-  border: 2px solid #000;
-  text-decoration: none;
-  font-weight: 600;
-  transition: all 0.2s;
-  margin-top: 1rem;
-}
-
-.cta-button:hover {
-  background: #fff;
-  color: #000;
-}
-
-.favorites-content {
   display: flex;
   flex-direction: column;
-  gap: 2rem;
-}
-
-.repo-group {
-  border: 2px solid #000;
-  background: #fff;
-}
-
-.repo-group-header {
-  padding: 1.5rem;
-  background: #000;
-  color: #fff;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   gap: 1rem;
 }
 
-.repo-group-header h2 {
-  font-size: 1.5rem;
+.page-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.title-icon {
+  font-size: 2.25rem;
+}
+
+.page-description {
+  color: var(--color-text-secondary);
+  font-size: 1rem;
   margin: 0;
 }
 
-.commit-count {
-  font-size: 0.875rem;
-  padding: 0.25rem 0.75rem;
-  background: #fff;
-  color: #000;
-  font-weight: 600;
-  border-radius: 12px;
-}
-
-.commits-list {
-  display: flex;
-  flex-direction: column;
-}
-
-.favorite-card {
-  padding: 1.5rem;
-  border-bottom: 2px solid #ddd;
-  transition: background 0.2s;
-}
-
-.favorite-card:last-child {
-  border-bottom: none;
-}
-
-.favorite-card:hover {
-  background: #fafafa;
-  transform: translateY(-2px);
-  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.1);
-}
-
-.favorite-main {
+.header-actions {
   display: flex;
   justify-content: space-between;
+  align-items: center;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.favorites-count {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.clear-all-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: transparent;
+  color: #EF4444;
+  border: 1px solid #EF4444;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+
+.clear-all-button:hover {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.favorites-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 1rem;
+  gap: 1rem;
+}
+
+.empty-icon {
+  font-size: 5rem;
+  opacity: 0.5;
+}
+
+.empty-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0;
+}
+
+.empty-message {
+  color: var(--color-text-secondary);
+  text-align: center;
+  max-width: 400px;
+  margin: 0;
+}
+
+.explore-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: var(--color-primary);
+  color: #FFFFFF;
+  text-decoration: none;
+  border-radius: var(--radius-md);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  transition: all var(--transition-base);
+  margin-top: 0.5rem;
+}
+
+.explore-button:hover {
+  background: var(--color-primary-hover);
+  transform: translateY(-1px);
+}
+
+.favorites-list {
+  display: flex;
+  flex-direction: column;
   gap: 1.5rem;
 }
 
-.favorite-info {
+.favorite-card {
+  background: var(--color-white);
+  border: 2px solid var(--color-gray-200);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  transition: all var(--transition-base);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.favorite-card:hover {
+  border-color: var(--color-blue);
+  box-shadow: 0 8px 24px rgba(0, 112, 243, 0.15);
+  transform: translateY(-2px);
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  background: var(--color-gray-50);
+  border-bottom: 2px solid var(--color-gray-200);
+}
+
+.repo-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.badge-icon {
+  font-size: 1rem;
+}
+
+.repo-name {
+  font-family: 'Monaco', 'Courier New', monospace;
+}
+
+.remove-button {
+  background: transparent;
+  border: none;
+  color: var(--color-text-secondary);
+  font-size: 1.25rem;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-base);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.remove-button:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: #EF4444;
+}
+
+.remove-icon {
+  display: block;
+  line-height: 1;
+}
+
+.commit-content {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.commit-header {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.author-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 2px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.author-avatar-placeholder {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+.commit-info {
   flex: 1;
   min-width: 0;
 }
 
 .commit-message {
-  font-size: 1.125rem;
+  font-size: 1rem;
   font-weight: 600;
-  margin-bottom: 0.5rem;
-  color: #000;
-  word-break: break-word;
+  color: var(--color-text);
+  margin: 0 0 0.5rem 0;
+  line-height: 1.5;
 }
 
 .commit-meta {
@@ -336,504 +403,157 @@ const clearAllFavorites = () => {
   align-items: center;
   gap: 0.5rem;
   font-size: 0.875rem;
-  color: #666;
-  flex-wrap: wrap;
-  margin-bottom: 0.75rem;
+  color: var(--color-text-secondary);
 }
 
-.commit-author {
+.author-name {
   font-weight: 500;
 }
 
-.meta-separator {
-  color: #ccc;
+.meta-divider {
+  color: var(--color-border);
 }
 
-.commit-sha {
-  font-family: monospace;
-  color: #000;
-  text-decoration: none;
-  padding: 0.125rem 0.375rem;
-  background: #f5f5f5;
-  border: 1px solid #ddd;
-  font-weight: 600;
-}
-
-.commit-sha:hover {
-  background: #000;
-  color: #fff;
-  border-color: #000;
-}
-
-.favorite-source {
-  margin-top: 0.5rem;
-}
-
-.source-link {
-  color: #000;
-  text-decoration: none;
-  font-size: 0.875rem;
-  font-weight: 600;
-  border-bottom: 2px solid transparent;
-  transition: border-color 0.2s;
-}
-
-.source-link:hover {
-  border-bottom-color: #000;
-}
-
-.favorite-actions {
-  display: flex;
-  gap: 0.5rem;
-  align-items: flex-start;
-  flex-shrink: 0;
-}
-
-.btn-detail {
-  padding: 0.5rem 1rem;
-  background: #fff;
-  border: 2px solid #000;
-  font-size: 0.875rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  white-space: nowrap;
-}
-
-.btn-detail:hover {
-  background: #000;
-  color: #fff;
-}
-
-.btn-remove {
-  padding: 0.5rem;
-  background: #000;
-  color: #fff;
-  border: 2px solid #000;
-  font-size: 1.25rem;
-  cursor: pointer;
-  transition: all 0.2s;
-  line-height: 1;
-}
-
-.btn-remove:hover {
-  background: #fff;
-  color: #000;
-}
-
-.actions-footer {
-  padding-top: 1rem;
-  border-top: 2px solid #ddd;
-  display: flex;
-  justify-content: center;
-}
-
-.btn-clear-all {
-  padding: 0.75rem 2rem;
-  background: #fff;
-  border: 2px solid #000;
-  font-size: 0.875rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-clear-all:hover {
-  background: #000;
-  color: #fff;
-}
-
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.9);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 2rem;
-}
-
-.modal-content {
-  background: #1e1e1e;
-  border: 1px solid #3e3e3e;
-  max-width: 1000px;
-  width: 100%;
-  max-height: 90vh;
-  overflow-y: auto;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1rem 1.5rem;
-  background: #2d2d2d;
-  border-bottom: 1px solid #3e3e3e;
-  position: sticky;
-  top: 0;
-  z-index: 1;
-}
-
-.modal-header h2 {
-  font-size: 1.25rem;
-  color: #cccccc;
-  font-weight: 500;
-}
-
-.btn-close {
-  padding: 0.25rem 0.75rem;
-  background: transparent;
-  border: 1px solid #555;
-  color: #cccccc;
-  font-size: 1.5rem;
-  cursor: pointer;
-  line-height: 1;
-  transition: all 0.2s;
-  border-radius: 3px;
-}
-
-.btn-close:hover {
-  background: #3e3e3e;
-  border-color: #777;
-  color: #fff;
-}
-
-.commit-detail {
-  padding: 1.5rem;
-  background: #1e1e1e;
-  color: #cccccc;
-}
-
-.detail-section {
-  margin-bottom: 1.5rem;
-  padding-bottom: 1.5rem;
-  border-bottom: 1px solid #3e3e3e;
-}
-
-.detail-section h3 {
-  font-size: 1.125rem;
-  margin-bottom: 0.75rem;
-  color: #ffffff;
-  font-weight: 500;
-}
-
-.detail-meta {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.875rem;
-  color: #858585;
-  flex-wrap: wrap;
-}
-
-.detail-link {
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-  color: #4fc3f7;
-  text-decoration: none;
-  padding: 0.125rem 0.375rem;
-  background: #2d2d2d;
-  border: 1px solid #3e3e3e;
-  font-weight: 500;
-  border-radius: 3px;
-  transition: all 0.2s;
-}
-
-.detail-link:hover {
-  background: #3e3e3e;
-  border-color: #4fc3f7;
-}
-
-.stats-section {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-  padding-bottom: 1.5rem;
-  border-bottom: 1px solid #3e3e3e;
-}
-
-.stat-card {
-  background: #252526;
-  border: 1px solid #3e3e3e;
-  padding: 1rem;
-  text-align: center;
-  border-radius: 4px;
-}
-
-.stat-value {
-  font-size: 2rem;
-  font-weight: 700;
-  color: #ffffff;
-  margin-bottom: 0.25rem;
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-}
-
-.stat-card.additions .stat-value {
-  color: #4ec9b0;
-}
-
-.stat-card.deletions .stat-value {
-  color: #f48771;
-}
-
-.stat-label {
-  font-size: 0.875rem;
-  color: #858585;
+.commit-date {
   font-weight: 400;
 }
 
-.files-section h3 {
-  font-size: 1.125rem;
-  margin-bottom: 1rem;
-  color: #ffffff;
-  font-weight: 500;
-}
-
-.file-card {
-  margin-bottom: 1.5rem;
-  border: 1px solid #3e3e3e;
-  background: #252526;
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.file-header {
-  padding: 0.75rem 1rem;
-  background: #2d2d2d;
-  border-bottom: 1px solid #3e3e3e;
+.commit-actions {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  gap: 1rem;
+  gap: 0.75rem;
   flex-wrap: wrap;
 }
 
-.filename {
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-  font-weight: 500;
-  color: #4fc3f7;
-  word-break: break-all;
-  font-size: 0.875rem;
-}
-
-.file-meta {
+.action-button {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  text-decoration: none;
+  border: none;
 }
 
-.file-status {
+.action-button:hover {
+  transform: translateY(-1px);
+  color: var(--color-text);
+}
+
+.action-button.primary {
+  background: var(--color-primary);
+  color: #FFFFFF;
+}
+
+.action-button.primary:hover {
+  background: var(--color-primary-hover);
+}
+
+.action-button.secondary {
+  background: transparent;
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+}
+
+.action-button.secondary:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text);
+  border-color: var(--color-border-hover);
+}
+
+.button-icon {
+  font-size: 1rem;
+}
+
+.commit-sha {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+}
+
+.sha-label {
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+.sha-value {
+  font-family: 'Monaco', 'Courier New', monospace;
+  color: var(--color-accent);
+  background: var(--color-surface-hover);
   padding: 0.25rem 0.5rem;
-  border: 1px solid #3e3e3e;
-  font-size: 0.7rem;
+  border-radius: var(--radius-sm);
   font-weight: 600;
-  text-transform: uppercase;
-  background: #252526;
-  color: #858585;
-  border-radius: 3px;
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
 }
 
-.file-status.modified {
-  background: #1e3a5f;
-  color: #4fc3f7;
-  border-color: #4fc3f7;
-}
-
-.file-status.added {
-  background: #1e3a1e;
-  color: #4ec9b0;
-  border-color: #4ec9b0;
-}
-
-.file-status.removed {
-  background: #3a1e1e;
-  color: #f48771;
-  border-color: #f48771;
-}
-
-.file-changes {
-  display: flex;
-  gap: 0.75rem;
-  font-size: 0.875rem;
-  font-weight: 600;
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-}
-
-.additions {
-  color: #4ec9b0;
-}
-
-.deletions {
-  color: #f48771;
-}
-
-.file-patch {
-  padding: 1rem;
-  overflow-x: auto;
-  font-size: 0.8rem;
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-  line-height: 1.6;
-  background: #1e1e1e;
-  margin: 0;
-  white-space: pre;
-  color: #d4d4d4;
-  tab-size: 4;
-}
-
-.file-patch {
-  background: #1e1e1e;
-}
-
-.no-patch {
-  padding: 1.5rem;
-  color: #858585;
-  font-style: italic;
-  text-align: center;
-  background: #1e1e1e;
-  font-size: 0.875rem;
-}
-
-.modal-content::-webkit-scrollbar {
-  width: 12px;
-}
-
-.modal-content::-webkit-scrollbar-track {
-  background: #1e1e1e;
-}
-
-.modal-content::-webkit-scrollbar-thumb {
-  background: #424242;
-  border-radius: 6px;
-}
-
-.modal-content::-webkit-scrollbar-thumb:hover {
-  background: #4e4e4e;
-}
-
-.file-patch::-webkit-scrollbar {
-  height: 8px;
-}
-
-.file-patch::-webkit-scrollbar-track {
-  background: #252526;
-}
-
-.file-patch::-webkit-scrollbar-thumb {
-  background: #424242;
-  border-radius: 4px;
-}
-
-.file-patch::-webkit-scrollbar-thumb:hover {
-  background: #4e4e4e;
-}
-
-.file-patch {
-  counter-reset: line-number;
-}
-
-.file-patch::before {
-  content: '';
-  display: block;
-}
-
-.confirm-modal {
-  background: #fff;
-  border: 3px solid #000;
-  padding: 2rem;
-  max-width: 500px;
-  width: 100%;
-}
-
-.confirm-modal h2 {
-  font-size: 1.5rem;
-  margin-bottom: 1rem;
-  color: #000;
-}
-
-.confirm-modal p {
-  color: #666;
-  margin-bottom: 1.5rem;
-  line-height: 1.5;
-}
-
-.confirm-actions {
-  display: flex;
-  gap: 1rem;
-  justify-content: flex-end;
-}
-
-.btn-cancel {
+.card-footer {
   padding: 0.75rem 1.5rem;
-  background: #fff;
-  border: 2px solid #000;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
+  background: var(--color-surface-hover);
+  border-top: 1px solid var(--color-border);
 }
 
-.btn-cancel:hover {
-  background: #f5f5f5;
+.saved-date {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
 }
 
-.btn-confirm {
-  padding: 0.75rem 1.5rem;
-  background: #000;
-  color: #fff;
-  border: 2px solid #000;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-confirm:hover {
-  background: #fff;
-  color: #000;
+.footer-icon {
+  font-size: 0.875rem;
 }
 
 @media (max-width: 768px) {
-  .favorites-container {
-    padding: 1rem;
+  .favorites-header {
+    padding: 1.5rem 1rem;
   }
 
-  .page-header h1 {
+  .page-title {
     font-size: 1.5rem;
   }
 
-  .repo-group-header {
+  .header-actions {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: stretch;
+    gap: 0.75rem;
   }
 
-  .favorite-main {
+  .clear-all-button {
+    justify-content: center;
+  }
+
+  .favorites-container {
+    padding: 1.5rem 1rem;
+  }
+
+  .card-header,
+  .commit-content,
+  .card-footer {
+    padding: 1rem;
+  }
+
+  .commit-header {
+    flex-wrap: wrap;
+  }
+
+  .commit-actions {
     flex-direction: column;
+    align-items: stretch;
   }
 
-  .favorite-actions {
-    align-self: flex-start;
+  .action-button {
+    justify-content: center;
   }
 
-  .stats-section {
-    grid-template-columns: 1fr;
-  }
-
-  .file-header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .confirm-actions {
-    flex-direction: column;
-  }
-
-  .btn-cancel,
-  .btn-confirm {
-    width: 100%;
+  .commit-sha {
+    margin-left: 0;
+    justify-content: center;
   }
 }
 </style>
